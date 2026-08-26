@@ -2,13 +2,11 @@ package com.sagimo.nezafi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
+@SpringBootApplication
 public class NezafiApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(NezafiApplication.class, args);
-	}
-
+    public static void main(String[] args) {
+        SpringApplication.run(NezafiApplication.class, args);
+    }
 }

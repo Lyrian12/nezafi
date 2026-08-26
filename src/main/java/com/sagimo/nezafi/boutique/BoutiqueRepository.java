@@ -7,6 +7,6 @@ import java.util.List;
 
 @Repository
 public interface BoutiqueRepository extends JpaRepository<Boutique, Long> {
-
     List<Boutique> findByStatut(StatutBoutique statut);
+    List<Boutique> findByNameContainingIgnoreCase(String name);
 }
