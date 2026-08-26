@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créer un compte - NEZAFI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex items-center justify-center p-6">
+
+<!-- Conteneur principal de la carte -->
+<div class="bg-white max-w-lg w-full p-8 md:p-10 rounded-2xl border border-slate-200 shadow-sm">
+
+    <!-- En-tête -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight uppercase mb-2">Create Account.</h1>
+        <p class="text-xs text-slate-500">Join the NEZAFI portal for advanced boutique management.</p>
+    </div>
+
+    <!-- Error/Success Messages -->
+    <div th:if="${error}" class="p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl mb-4">
+        <span th:text="${error}">Error message</span>
+    </div>
+    <div th:if="${success}" class="p-3 bg-green-50 border border-green-100 text-green-600 text-xs rounded-xl mb-4">
+        <span th:text="${success}">Success message</span>
+    </div>
+
+    <!-- Formulaire d'inscription -->
+    <form action="/signup" method="post" class="space-y-5">
+
+        <!-- Nom complet -->
+        <div>
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Full Name</label>
+            <input type="text" name="name" placeholder="John Doe" required
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+        </div>
+
+        <!-- Email -->
+        <div>
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email Address</label>
+            <input type="email" name="email" placeholder="john@nezafi.com" required
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+        </div>
+
+        <!-- Téléphone -->
+        <div>
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Telephone</label>
+            <input type="tel" name="telephone" placeholder="+1 (555) 000-0000" required
+                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+        </div>
+
+        <!-- Mot de passe et Confirmation -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Password</label>
+                <input type="password" name="password" placeholder="••••••••" required
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Confirm</label>
+                <input type="password" name="confirmPassword" placeholder="••••••••" required
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+            </div>
+        </div>
+
+        <p class="text-[11px] text-slate-400">* Password must be at least 8 characters long.</p>
+
+        <!-- Bouton d'action (Vert Lime fidèle à la maquette) -->
+        <button type="submit" class="w-full bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-3.5 rounded-xl transition-colors text-sm flex items-center justify-center space-x-2 shadow-sm">
+            <span>REGISTER NOW</span>
+            <span>→</span>
+        </button>
+
+    </form>
+
+    <!-- Lien vers la connexion -->
+    <p class="text-center text-xs text-slate-500 mt-6">
+        Already have an account? <a th:href="@{/login}" class="font-bold text-slate-900 underline hover:text-lime-600 transition-colors">Sign in</a>
+    </p>
+
+</div>
+
+</body>
+</html>

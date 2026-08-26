@@ -22,17 +22,22 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/login", "/css/**", "/h2-console/**").permitAll()
+                .requestMatchers("/", "/signup", "/signin", "/register", "/css/**", "/js/**", "/h2-console/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/shops/**", "/contracts/**").hasRole("LOCATAIRE")
                 .requestMatchers("/api/**").hasAnyRole("ADMIN", "LOCATAIRE")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
-                .loginPage("/login")
-                .defaultSuccessUrl("/", true)
+                .loginPage("/signin")
+                .loginProcessingUrl("/signin")
+                .defaultSuccessUrl("/dashboard", true)
+                .failureUrl("/signin?error=true")
                 .permitAll()
             )
             .logout(logout -> logout
                 .logoutUrl("/logout")
+                .logoutSuccessUrl("/")
                 .permitAll());
 
         return http.build();

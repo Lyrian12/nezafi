@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Store Form</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex">
+
+<!-- SIDEBAR -->
+<aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-6 fixed h-full z-10">
+    <div>
+        <!-- Logo -->
+        <div class="flex items-center space-x-2 mb-10">
+            <span class="inline-block w-3 h-3 bg-lime-500 rounded-full"></span>
+            <span class="font-bold text-lg tracking-wider text-slate-900">NEZAFI</span>
+        </div>
+        <!-- Navigation -->
+        <nav class="space-y-1">
+            <a th:href="@{/admin/stores}" class="flex items-center px-4 py-3 text-sm font-bold rounded-xl bg-slate-900 text-white">
+                Store Management
+            </a>
+            <a th:href="@{/admin/contracts}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
+                Management Contracts
+            </a>
+        </nav>
+    </div>
+    <!-- Déconnexion -->
+    <div>
+        <form th:action="@{/logout}" method="post">
+            <button type="submit" class="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                Sign Out
+            </button>
+        </form>
+    </div>
+</aside>
+
+<!-- CONTENU PRINCIPAL -->
+<main class="ml-64 flex-grow p-10">
+
+    <!-- En-tête -->
+    <div class="mb-8">
+        <a th:href="@{/admin/stores}" class="text-xs text-slate-400 font-medium hover:text-slate-600">← Back to Stores</a>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mt-4" th:text="${boutique.id == null} ? 'Add New Store' : 'Edit Store'">Add New Store</h1>
+    </div>
+
+    <!-- Formulaire -->
+    <div class="max-w-2xl">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+            <form th:action="${boutique.id == null} ? @{/admin/stores/add} : @{/admin/stores/edit/{id}(id=${boutique.id})}" method="post" class="space-y-6">
+
+                <!-- Store Name -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Store Name *</label>
+                    <input type="text" name="name" th:value="${boutique.name}" placeholder="Enter store name" required
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                </div>
+
+                <!-- Image URL -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Image URL *</label>
+                    <input type="url" name="imageUrl" th:value="${boutique.imageUrl}" placeholder="https://example.com/image.jpg" required
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                </div>
+
+                <!-- Status -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Status *</label>
+                    <select name="statut" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                        <option value="">Select status</option>
+                        <option value="DISPONIBLE" th:selected="${boutique.statut == 'DISPONIBLE'}">Disponible</option>
+                        <option value="NON_DISPONIBLE" th:selected="${boutique.statut == 'NON_DISPONIBLE'}">Non Disponible</option>
+                        <option value="EN_MAINTENANCE" th:selected="${boutique.statut == 'EN_MAINTENANCE'}">En Maintenance</option>
+                    </select>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex gap-4 pt-4">
+                    <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
+                        <span th:text="${boutique.id == null} ? 'Create Store' : 'Update Store'">Create Store</span>
+                    </button>
+                    <a th:href="@{/admin/stores}" class="bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
+                        Cancel
+                    </a>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</main>
+
+</body>
+</html>
