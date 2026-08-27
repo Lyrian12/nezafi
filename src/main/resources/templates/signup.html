@@ -26,7 +26,7 @@
     </div>
 
     <!-- Formulaire d'inscription -->
-    <form action="/signup" method="post" class="space-y-5">
+    <form th:action="@{/signup}" method="post" class="space-y-5">
 
         <!-- Nom complet -->
         <div>
@@ -75,7 +75,7 @@
 
     <!-- Lien vers la connexion -->
     <p class="text-center text-xs text-slate-500 mt-6">
-        Already have an account? <a th:href="@{/login}" class="font-bold text-slate-900 underline hover:text-lime-600 transition-colors">Sign in</a>
+        Already have an account? <a th:href="@{/signin}" class="font-bold text-slate-900 underline hover:text-lime-600 transition-colors">Sign in</a>
     </p>
 
 </div>

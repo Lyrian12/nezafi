@@ -39,7 +39,7 @@ public class AdminController {
                 .filter(b -> b.getStatut() == StatutBoutique.DISPONIBLE).count());
         model.addAttribute("pendingStoresCount", boutiqueRepository.findAll().stream()
                 .filter(b -> b.getStatut() == StatutBoutique.NON_DISPONIBLE).count());
-        model.addAttribute("revenueToday", "$12,450");
+        model.addAttribute("revenueToday", "600 fcfa ");
         return "admin-stores";
     }
 

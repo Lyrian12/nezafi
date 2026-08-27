@@ -22,7 +22,7 @@
     <p class="text-xs text-slate-500 mb-8">Enter your credentials to access your portal</p>
 
     <!-- Formulaire de connexion Spring Security -->
-    <form action="/signin" method="post" class="space-y-4 text-left">
+    <form th:action="@{/signin}" method="post" class="space-y-4 text-left">
 
         <!-- Message d'erreur éventuel -->
         <div th:if="${error}" class="p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl">
