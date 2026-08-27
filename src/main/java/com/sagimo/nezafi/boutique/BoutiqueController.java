@@ -41,6 +41,10 @@ public class BoutiqueController {
                     existing.setName(boutique.getName());
                     existing.setImageUrl(boutique.getImageUrl());
                     existing.setStatut(boutique.getStatut());
+                    existing.setPalier(boutique.getPalier());
+                    existing.setSuperficie(boutique.getSuperficie());
+                    existing.setPrix(boutique.getPrix());
+                    existing.setCategorie(boutique.getCategorie());
                     if (boutique.getAddedAt() != null) {
                         existing.setAddedAt(boutique.getAddedAt());
                     }

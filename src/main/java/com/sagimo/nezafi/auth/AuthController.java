@@ -36,7 +36,8 @@ public class AuthController {
 
     @PostMapping("/signup")
     public String registerUser(
-            @RequestParam String name,
+            @RequestParam String nom,
+            @RequestParam String prenom,
             @RequestParam String email,
             @RequestParam String telephone,
             @RequestParam String password,
@@ -44,23 +45,29 @@ public class AuthController {
             Model model) {
 
         if (!password.equals(confirmPassword)) {
-            model.addAttribute("error", "Passwords do not match");
+            model.addAttribute("error", "Les mots de passe ne correspondent pas");
             return "signup";
         }
 
         if (password.length() < 8) {
-            model.addAttribute("error", "Password must be at least 8 characters long");
+            model.addAttribute("error", "Le mot de passe doit contenir au moins 8 caractères");
             return "signup";
         }
 
         Optional<User> existingUser = userRepository.findByEmail(email);
         if (existingUser.isPresent()) {
-            model.addAttribute("error", "Email already registered");
+            model.addAttribute("error", "Cet email est déjà enregistré");
+            return "signup";
+        }
+
+        if (userRepository.findByTelephone(telephone).isPresent()) {
+            model.addAttribute("error", "Ce numéro de téléphone est déjà enregistré");
             return "signup";
         }
 
         User user = new User();
-        user.setName(name);
+        user.setNom(nom);
+        user.setPrenom(prenom);
         user.setEmail(email);
         user.setTelephone(telephone);
         user.setPassword(passwordEncoder.encode(password));
@@ -68,7 +75,7 @@ public class AuthController {
 
         userRepository.save(user);
 
-        model.addAttribute("success", "Account created successfully! Please sign in.");
+        model.addAttribute("success", "Compte créé avec succès ! Veuillez vous connecter.");
         return "redirect:/signin";
     }
 
@@ -77,7 +84,7 @@ public class AuthController {
             @RequestParam(required = false) String error,
             Model model) {
         if (error != null) {
-            model.addAttribute("error", "Invalid email or password");
+            model.addAttribute("error", "Identifiant ou mot de passe invalide");
         }
         return "signin";
     }

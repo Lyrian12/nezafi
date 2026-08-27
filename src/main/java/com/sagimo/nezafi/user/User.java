@@ -22,13 +22,20 @@ public class User {
     private Long id;
 
     @Column(nullable = false)
-    private String name;
+    private String nom;
 
     @Column(nullable = false)
-    private String telephone;
+    private String prenom;
 
     @Column(nullable = false, unique = true)
+    private String telephone;
+
+    @Column(nullable = true, unique = true)
     private String email;
+
+    @JsonIgnore
+    @Column(nullable = true)
+    private String numeroCNI;
 
     @JsonIgnore
     @Column(nullable = false)

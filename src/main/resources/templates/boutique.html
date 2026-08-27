@@ -20,8 +20,9 @@
     <!-- Sign out à la droite -->
     <div>
         <form th:action="@{/logout}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
             <button type="submit" class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-                Sign Out
+                Déconnexion
             </button>
         </form>
     </div>

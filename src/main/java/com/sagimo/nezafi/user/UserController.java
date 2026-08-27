@@ -32,7 +32,14 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
+    public ResponseEntity<Object> createUser(@RequestBody User user) {
+        if (user.getEmail() != null && userRepository.findByEmail(user.getEmail()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Cet email est déjà utilisé");
+        }
+        if (user.getTelephone() != null && userRepository.findByTelephone(user.getTelephone()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Ce numéro de téléphone est déjà utilisé");
+        }
+
         if (user.getPassword() != null && !user.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
@@ -41,12 +48,25 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<Object> updateUser(@PathVariable Long id, @RequestBody User user) {
         return userRepository.findById(id)
-                .map(existing -> {
-                    existing.setName(user.getName());
+                .<ResponseEntity<Object>>map(existing -> {
+                    boolean emailTaken = user.getEmail() != null && userRepository.findByEmail(user.getEmail())
+                            .filter(other -> !other.getId().equals(id)).isPresent();
+                    if (emailTaken) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Cet email est déjà utilisé");
+                    }
+                    boolean telephoneTaken = user.getTelephone() != null && userRepository.findByTelephone(user.getTelephone())
+                            .filter(other -> !other.getId().equals(id)).isPresent();
+                    if (telephoneTaken) {
+                        return ResponseEntity.status(HttpStatus.CONFLICT).body("Ce numéro de téléphone est déjà utilisé");
+                    }
+
+                    existing.setNom(user.getNom());
+                    existing.setPrenom(user.getPrenom());
                     existing.setTelephone(user.getTelephone());
                     existing.setEmail(user.getEmail());
+                    existing.setNumeroCNI(user.getNumeroCNI());
                     existing.setRole(user.getRole());
                     if (user.getPassword() != null && !user.getPassword().isBlank()) {
                         existing.setPassword(passwordEncoder.encode(user.getPassword()));

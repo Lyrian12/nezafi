@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Store Form</title>
+    <title>Admin - Formulaire boutique</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex">
@@ -19,18 +19,22 @@
         <!-- Navigation -->
         <nav class="space-y-1">
             <a th:href="@{/admin/stores}" class="flex items-center px-4 py-3 text-sm font-bold rounded-xl bg-slate-900 text-white">
-                Store Management
+                Gestion des boutiques
             </a>
             <a th:href="@{/admin/contracts}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
-                Management Contracts
+                Gestion des contrats
+            </a>
+            <a th:href="@{/admin/clients}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
+                Gestion des clients
             </a>
         </nav>
     </div>
     <!-- Déconnexion -->
     <div>
         <form th:action="@{/logout}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
             <button type="submit" class="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                Sign Out
+                Déconnexion
             </button>
         </form>
     </div>
@@ -41,47 +45,83 @@
 
     <!-- En-tête -->
     <div class="mb-8">
-        <a th:href="@{/admin/stores}" class="text-xs text-slate-400 font-medium hover:text-slate-600">← Back to Stores</a>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mt-4" th:text="${boutique.id == null} ? 'Add New Store' : 'Edit Store'">Add New Store</h1>
+        <a th:href="@{/admin/stores}" class="text-xs text-slate-400 font-medium hover:text-slate-600">← Retour aux boutiques</a>
+        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mt-4" th:text="${boutique.id == null} ? 'Ajouter une boutique' : 'Modifier la boutique'">Ajouter une boutique</h1>
     </div>
 
     <!-- Formulaire -->
     <div class="max-w-2xl">
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
             <form th:action="${boutique.id == null} ? @{/admin/stores/add} : @{/admin/stores/edit/{id}(id=${boutique.id})}" method="post" class="space-y-6">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 
                 <!-- Store Name -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Store Name *</label>
-                    <input type="text" name="name" th:value="${boutique.name}" placeholder="Enter store name" required
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Nom de la boutique *</label>
+                    <input type="text" name="name" th:value="${boutique.name}" placeholder="Entrez le nom de la boutique" required
                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
                 <!-- Image URL -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Image URL *</label>
-                    <input type="url" name="imageUrl" th:value="${boutique.imageUrl}" placeholder="https://example.com/image.jpg" required
+                    <label class="block text-sm font-bold text-slate-700 mb-2">URL de l'image *</label>
+                    <input type="url" name="imageUrl" th:value="${boutique.imageUrl}" placeholder="https://exemple.com/image.jpg" required
                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
                 <!-- Status -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Status *</label>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Statut *</label>
                     <select name="statut" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
-                        <option value="">Select status</option>
+                        <option value="">Sélectionner un statut</option>
                         <option value="DISPONIBLE" th:selected="${boutique.statut == 'DISPONIBLE'}">Disponible</option>
                         <option value="NON_DISPONIBLE" th:selected="${boutique.statut == 'NON_DISPONIBLE'}">Non Disponible</option>
                         <option value="EN_MAINTENANCE" th:selected="${boutique.statut == 'EN_MAINTENANCE'}">En Maintenance</option>
                     </select>
                 </div>
 
+                <!-- Floor / Palier -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Palier *</label>
+                    <select name="palier" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                        <option value="">Sélectionner un palier</option>
+                        <option value="PALIER_1" th:selected="${boutique.palier == 'PALIER_1'}">Palier 1</option>
+                        <option value="PALIER_2" th:selected="${boutique.palier == 'PALIER_2'}">Palier 2</option>
+                        <option value="PALIER_3" th:selected="${boutique.palier == 'PALIER_3'}">Palier 3</option>
+                    </select>
+                </div>
+
+                <!-- Surface Area -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Superficie (m&sup2;) *</label>
+                    <input type="number" name="superficie" th:value="${boutique.superficie}" step="0.01" min="0" placeholder="ex : 25.00" required
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                </div>
+
+                <!-- Price -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Prix (FCFA) *</label>
+                    <input type="number" name="prix" th:value="${boutique.prix}" step="0.01" min="0" placeholder="ex : 150000.00" required
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                </div>
+
+                <!-- Catégorie -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Catégorie *</label>
+                    <select name="categorie" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                        <option value="">Sélectionner une catégorie</option>
+                        <option value="BOUTIQUE" th:selected="${boutique.categorie == 'BOUTIQUE'}">Boutique</option>
+                        <option value="MAGASIN" th:selected="${boutique.categorie == 'MAGASIN'}">Magasin</option>
+                    </select>
+                </div>
+
                 <!-- Buttons -->
                 <div class="flex gap-4 pt-4">
                     <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
-                        <span th:text="${boutique.id == null} ? 'Create Store' : 'Update Store'">Create Store</span>
+                        <span th:text="${boutique.id == null} ? 'Créer la boutique' : 'Modifier la boutique'">Créer la boutique</span>
                     </button>
                     <a th:href="@{/admin/stores}" class="bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
-                        Cancel
+                        Annuler
                     </a>
                 </div>
 

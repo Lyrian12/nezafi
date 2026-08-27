@@ -2,6 +2,8 @@ package com.sagimo.nezafi.config;
 
 import com.sagimo.nezafi.boutique.Boutique;
 import com.sagimo.nezafi.boutique.BoutiqueRepository;
+import com.sagimo.nezafi.boutique.CategorieBoutique;
+import com.sagimo.nezafi.boutique.Palier;
 import com.sagimo.nezafi.boutique.StatutBoutique;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
@@ -9,6 +11,8 @@ import com.sagimo.nezafi.user.UserRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
 
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -27,7 +31,8 @@ public class DataSeeder implements CommandLineRunner {
     public void run(String... args) {
         if (userRepository.findByEmail("admin@nezafi.com").isEmpty()) {
             User admin = new User();
-            admin.setName("Admin Nezafi");
+            admin.setNom("Nezafi");
+            admin.setPrenom("Admin");
             admin.setTelephone("+212600000000");
             admin.setEmail("admin@nezafi.com");
             admin.setPassword(passwordEncoder.encode("admin123"));
@@ -40,6 +45,10 @@ public class DataSeeder implements CommandLineRunner {
             boutique.setName("Boutique Demo");
             boutique.setImageUrl("https://images.unsplash.com/photo-1521572267360-ee0c2909d518");
             boutique.setStatut(StatutBoutique.DISPONIBLE);
+            boutique.setPalier(Palier.PALIER_1);
+            boutique.setSuperficie(new BigDecimal("25.00"));
+            boutique.setPrix(new BigDecimal("150000.00"));
+            boutique.setCategorie(CategorieBoutique.BOUTIQUE);
             boutiqueRepository.save(boutique);
         }
     }
