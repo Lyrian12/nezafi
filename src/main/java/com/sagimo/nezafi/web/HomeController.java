@@ -26,8 +26,10 @@ public class HomeController {
 
     @GetMapping("/dashboard")
     public String dashboard(Authentication authentication, Model model) {
-        String email = authentication.getName();
-        User user = userRepository.findByEmail(email).orElse(null);
+        String identifier = authentication.getName();
+        User user = userRepository.findByEmail(identifier)
+                .or(() -> userRepository.findByTelephone(identifier))
+                .orElse(null);
 
         if (user == null) {
             return "redirect:/signin";
@@ -40,7 +42,7 @@ public class HomeController {
         }
 
         // ROLE_LOCATAIRE - User dashboard
-        model.addAttribute("username", user.getName());
+        model.addAttribute("username", user.getPrenom() + " " + user.getNom());
         model.addAttribute("shops", boutiqueRepository.findAll());
         model.addAttribute("pendingRequestsCount", 0);
 

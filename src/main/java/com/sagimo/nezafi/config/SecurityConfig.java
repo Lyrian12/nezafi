@@ -45,13 +45,14 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService(UserRepository userRepository) {
-        return username -> userRepository.findByEmail(username)
+        return identifier -> userRepository.findByEmail(identifier)
+                .or(() -> userRepository.findByTelephone(identifier))
                 .map(user -> User.builder()
-                        .username(user.getEmail())
+                        .username(user.getEmail() != null ? user.getEmail() : user.getTelephone())
                         .password(user.getPassword())
                         .roles(user.getRole().name().replace("ROLE_", ""))
                         .build())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + identifier));
     }
 
     @Bean
