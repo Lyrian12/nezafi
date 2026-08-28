@@ -13,6 +13,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     Optional<User> findByEmailAndRole(String email, Role role);
     Optional<User> findByTelephone(String telephone);
+    Optional<User> findByNumeroCNI(String numeroCNI);
     List<User> findByRole(Role role);
 
     @Query("SELECT u FROM User u WHERE u.role = :role AND ("

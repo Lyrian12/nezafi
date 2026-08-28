@@ -17,11 +17,12 @@ import java.util.List;
  *
  * Règles :
  * <ul>
- *     <li>Somme des paiements ≥ montant dû → PAYEE.</li>
- *     <li>Sinon, si la date d'échéance est dépassée → EN_RETARD.</li>
- *     <li>Sinon → EN_ATTENTE.</li>
+ *     <li>Somme des paiements ≥ montant dû → PAYEE (vert) : soldée.</li>
+ *     <li>Sinon, si la date d'échéance est dépassée → EN_RETARD (rouge).</li>
+ *     <li>Sinon → EN_COURS (orange) : une promesse de paiement à venir, pas un
+ *         problème — une échéance n'est jamais EN_RETARD avant sa propre date.</li>
  * </ul>
- * Un paiement partiel avant l'échéance reste donc EN_ATTENTE (pas de statut dédié
+ * Un paiement partiel avant l'échéance reste donc EN_COURS (pas de statut dédié
  * "partiellement payée" demandé) — le montant réellement payé doit être affiché à
  * côté du statut dans les vues pour rester visible.
  */
@@ -50,7 +51,7 @@ public class EcheanceStatusService {
         } else if (echeance.getDateEcheance().isBefore(LocalDate.now())) {
             echeance.setStatut(StatutEcheance.EN_RETARD);
         } else {
-            echeance.setStatut(StatutEcheance.EN_ATTENTE);
+            echeance.setStatut(StatutEcheance.EN_COURS);
         }
         echeanceRepository.save(echeance);
     }

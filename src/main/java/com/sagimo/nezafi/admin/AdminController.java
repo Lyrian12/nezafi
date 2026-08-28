@@ -38,7 +38,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -57,11 +59,12 @@ public class AdminController {
     private final ContratStatusService contratStatusService;
     private final EcheanceRepository echeanceRepository;
     private final AuditService auditService;
+    private final AdminAlertService adminAlertService;
 
     public AdminController(EmplacementRepository emplacementRepository, ContratRepository contratRepository,
                             UserRepository userRepository, PasswordEncoder passwordEncoder,
                             ContratStatusService contratStatusService, EcheanceRepository echeanceRepository,
-                            AuditService auditService) {
+                            AuditService auditService, AdminAlertService adminAlertService) {
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
@@ -69,6 +72,7 @@ public class AdminController {
         this.contratStatusService = contratStatusService;
         this.echeanceRepository = echeanceRepository;
         this.auditService = auditService;
+        this.adminAlertService = adminAlertService;
     }
 
     /** Résout l'admin actuellement connecté, pour attribuer les entrées du journal d'audit. */
@@ -109,9 +113,44 @@ public class AdminController {
 
     // Store Management
     @GetMapping("/stores")
-    public String storesPage(Model model) {
+    public String storesPage(
+            @RequestParam(required = false) Palier palier,
+            @RequestParam(required = false) StatutEmplacement statut,
+            @RequestParam(required = false) CategorieEmplacement categorie,
+            @RequestParam(required = false) BigDecimal prixMin,
+            @RequestParam(required = false) BigDecimal prixMax,
+            @RequestParam(required = false) BigDecimal superficieMin,
+            @RequestParam(required = false) BigDecimal superficieMax,
+            Model model) {
         List<Emplacement> allStores = emplacementRepository.findAll();
-        model.addAttribute("stores", allStores);
+
+        List<Emplacement> filteredStores = allStores.stream()
+                .filter(e -> palier == null || e.getPalier() == palier)
+                .filter(e -> statut == null || e.getStatut() == statut)
+                .filter(e -> categorie == null || e.getCategorie() == categorie)
+                .filter(e -> prixMin == null || (e.getPrix() != null && e.getPrix().compareTo(prixMin) >= 0))
+                .filter(e -> prixMax == null || (e.getPrix() != null && e.getPrix().compareTo(prixMax) <= 0))
+                .filter(e -> superficieMin == null || (e.getSuperficie() != null && e.getSuperficie().compareTo(superficieMin) >= 0))
+                .filter(e -> superficieMax == null || (e.getSuperficie() != null && e.getSuperficie().compareTo(superficieMax) <= 0))
+                .toList();
+        model.addAttribute("stores", filteredStores);
+        model.addAttribute("palierFiltre", palier);
+        model.addAttribute("statutFiltre", statut);
+        model.addAttribute("categorieFiltre", categorie);
+        model.addAttribute("prixMin", prixMin);
+        model.addAttribute("prixMax", prixMax);
+        model.addAttribute("superficieMin", superficieMin);
+        model.addAttribute("superficieMax", superficieMax);
+        model.addAttribute("paliers", Palier.values());
+        model.addAttribute("statuts", StatutEmplacement.values());
+        model.addAttribute("categories", CategorieEmplacement.values());
+
+        // Widget de synthèse des incohérences non bloquantes (cf. AdminAlertService) :
+        // affiché en haut de cette page, qui sert de tableau de bord admin.
+        model.addAttribute("emplacementsOrphelins", adminAlertService.emplacementsNonDisponiblesSansContratActif());
+        model.addAttribute("contratsEcartLoyer", adminAlertService.contratsAvecEcartLoyerSignificatif());
+        model.addAttribute("echeancesExcedentaires", adminAlertService.echeancesAvecPaiementExcedentaire());
+
         model.addAttribute("totalStores", allStores.size());
         model.addAttribute("activeStoresCount", allStores.stream()
                 .filter(b -> b.getStatut() == StatutEmplacement.DISPONIBLE).count());
@@ -128,13 +167,13 @@ public class AdminController {
         model.addAttribute("revenueToday", revenueToday);
 
         List<PalierOccupancy> occupancyByPalier = Arrays.stream(Palier.values())
-                .map(palier -> {
-                    long total = allStores.stream().filter(b -> b.getPalier() == palier).count();
+                .map(p -> {
+                    long total = allStores.stream().filter(b -> b.getPalier() == p).count();
                     long occupied = allStores.stream()
-                            .filter(b -> b.getPalier() == palier && b.getStatut() == StatutEmplacement.NON_DISPONIBLE)
+                            .filter(b -> b.getPalier() == p && b.getStatut() == StatutEmplacement.NON_DISPONIBLE)
                             .count();
                     double percentage = total == 0 ? 0.0 : (occupied * 100.0 / total);
-                    return new PalierOccupancy(palier, occupied, total, percentage);
+                    return new PalierOccupancy(p, occupied, total, percentage);
                 })
                 .toList();
         model.addAttribute("occupancyByPalier", occupancyByPalier);
@@ -149,6 +188,21 @@ public class AdminController {
         model.addAttribute("clientByEmplacementId", clientByEmplacementId);
 
         return "admin-stores";
+    }
+
+    @GetMapping("/stores/{id}")
+    public String storeDetail(@PathVariable Long id, Model model) {
+        Emplacement emplacement = emplacementRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Store not found"));
+
+        List<Contrat> contrats = contratRepository.findByEmplacementId(id);
+        contrats.sort(Comparator.comparing(Contrat::getDateDebut).reversed());
+
+        model.addAttribute("emplacement", emplacement);
+        model.addAttribute("contrats", contrats);
+        model.addAttribute("estOrpheline", emplacement.getStatut() == StatutEmplacement.NON_DISPONIBLE
+                && adminAlertService.sansContratActif(emplacement));
+        return "admin-store-detail";
     }
 
     @GetMapping("/stores/add")
@@ -234,9 +288,24 @@ public class AdminController {
 
     // Contract Management
     @GetMapping("/contracts")
-    public String contractsPage(Model model) {
+    public String contractsPage(
+            @RequestParam(required = false) StatutContrat statut,
+            @RequestParam(required = false) String search,
+            Model model) {
         List<Contrat> allContracts = contratRepository.findAll();
-        model.addAttribute("contracts", allContracts);
+
+        String terme = (search == null || search.isBlank()) ? null : search.trim().toLowerCase();
+        List<Contrat> filteredContracts = allContracts.stream()
+                .filter(c -> statut == null || c.getStatut() == statut)
+                .filter(c -> terme == null
+                        || c.getEmplacement().getName().toLowerCase().contains(terme)
+                        || c.getLocataire().getNom().toLowerCase().contains(terme)
+                        || c.getLocataire().getPrenom().toLowerCase().contains(terme))
+                .toList();
+        model.addAttribute("contracts", filteredContracts);
+        model.addAttribute("statutFiltre", statut);
+        model.addAttribute("search", search);
+        model.addAttribute("statuts", StatutContrat.values());
         model.addAttribute("totalContracts", allContracts.size());
         model.addAttribute("activeContracts", allContracts.stream()
                 .filter(c -> c.getStatut() == StatutContrat.VALIDER).count());
@@ -288,27 +357,46 @@ public class AdminController {
 
         StatutCaution statutCautionEnum = StatutCaution.valueOf(statutCaution);
         if (cautionMotifManquant(statutCautionEnum, motifRetenueCaution)) {
-            Contrat rejected = new Contrat();
-            rejected.setEmplacement(emplacement);
-            rejected.setLocataire(locataire);
-            rejected.setTermes(termes);
-            rejected.setStatut(StatutContrat.valueOf(statut));
-            rejected.setMontantLoyer(montantLoyer);
-            rejected.setDureeLoyerMois(dureeLoyerMois);
-            rejected.setMontantCaution(montantCaution);
-            rejected.setDureeCautionMois(dureeCautionMois);
-            rejected.setStatutCaution(statutCautionEnum);
             return rejectContractForm(model,
-                    "Le motif est obligatoire quand la caution est retenue (partiellement ou totalement).", rejected);
+                    "Le motif est obligatoire quand la caution est retenue (partiellement ou totalement).",
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
+                            dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+        }
+
+        LocalDate dateDebutParsed = LocalDate.parse(dateDebut);
+        LocalDate dateFinParsed = LocalDate.parse(dateFin);
+        if (dateDebutParsed.isAfter(dateFinParsed)) {
+            return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.",
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
+                            dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+        }
+
+        StatutContrat statutEnum = StatutContrat.valueOf(statut);
+        if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacement.getId(), null)) {
+            return rejectContractForm(model,
+                    "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.",
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
+                            dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+        }
+
+        Contrat contratPrecedent = null;
+        if (contratPrecedentId != null) {
+            contratPrecedent = contratRepository.findById(contratPrecedentId).orElse(null);
+            if (contratPrecedent != null && !peutEtreRenouvele(contratPrecedent)) {
+                return rejectContractForm(model,
+                        "Le renouvellement n'est possible qu'à partir d'un contrat résilié ou expiré.",
+                        contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
+                                dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+            }
         }
 
         Contrat contrat = new Contrat();
         contrat.setEmplacement(emplacement);
         contrat.setLocataire(locataire);
-        contrat.setDateDebut(LocalDate.parse(dateDebut));
-        contrat.setDateFin(LocalDate.parse(dateFin));
+        contrat.setDateDebut(dateDebutParsed);
+        contrat.setDateFin(dateFinParsed);
         contrat.setTermes(termes);
-        contrat.setStatut(StatutContrat.valueOf(statut));
+        contrat.setStatut(statutEnum);
         contrat.setMontantLoyer(montantLoyer);
         contrat.setDureeLoyerMois(dureeLoyerMois);
         contrat.setMontantCaution(montantCaution);
@@ -317,18 +405,63 @@ public class AdminController {
         contrat.setMotifRetenueCaution((motifRetenueCaution == null || motifRetenueCaution.isBlank())
                 ? null : motifRetenueCaution.trim());
         contrat.setDatePreavis((datePreavis == null || datePreavis.isBlank()) ? null : LocalDate.parse(datePreavis));
-        if (contratPrecedentId != null) {
-            contratRepository.findById(contratPrecedentId).ifPresent(contrat::setContratPrecedent);
-        }
-        contratRepository.save(contrat);
+        contrat.setContratPrecedent(contratPrecedent);
 
-        creerEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes);
+        List<Echeance> echeances = new ArrayList<>();
+        String erreurEcheances = construireEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes, echeances);
+        if (erreurEcheances != null) {
+            return rejectContractForm(model, erreurEcheances,
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
+                            dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+        }
+
+        contratRepository.save(contrat);
+        echeances.forEach(echeanceRepository::save);
         contratStatusService.syncEmplacementStatut(contrat);
 
         auditService.enregistrer(currentAdmin(authentication), TypeActionAudit.CREATION, "Contrat", contrat.getId(),
                 null, contratSnapshot(contrat));
 
         return "redirect:/admin/contracts/" + contrat.getId();
+    }
+
+    /** Reconstruit un Contrat non persisté pour re-remplir le formulaire après un rejet. */
+    private Contrat contratPourRejet(Emplacement emplacement, User locataire, String dateDebut, String dateFin,
+                                      String termes, String statut, BigDecimal montantLoyer, Integer dureeLoyerMois,
+                                      BigDecimal montantCaution, Integer dureeCautionMois, StatutCaution statutCaution) {
+        Contrat rejected = new Contrat();
+        rejected.setEmplacement(emplacement);
+        rejected.setLocataire(locataire);
+        try {
+            rejected.setDateDebut(LocalDate.parse(dateDebut));
+            rejected.setDateFin(LocalDate.parse(dateFin));
+        } catch (RuntimeException ignored) {
+            // Dates invalides ou absentes : le formulaire les affichera simplement vides.
+        }
+        rejected.setTermes(termes);
+        rejected.setStatut(StatutContrat.valueOf(statut));
+        rejected.setMontantLoyer(montantLoyer);
+        rejected.setDureeLoyerMois(dureeLoyerMois);
+        rejected.setMontantCaution(montantCaution);
+        rejected.setDureeCautionMois(dureeCautionMois);
+        rejected.setStatutCaution(statutCaution);
+        return rejected;
+    }
+
+    /**
+     * Un emplacement ne peut pas avoir deux contrats VALIDER actifs simultanément.
+     * {@code excludeContratId} permet d'ignorer le contrat en cours d'édition lui-même.
+     */
+    private boolean aUnAutreContratValide(Long emplacementId, Long excludeContratId) {
+        return contratRepository.findByEmplacementId(emplacementId).stream()
+                .filter(c -> excludeContratId == null || !c.getId().equals(excludeContratId))
+                .anyMatch(c -> c.getStatut() == StatutContrat.VALIDER);
+    }
+
+    /** Un contrat ne peut être renouvelé que s'il est résilié, ou si sa date de fin est dépassée. */
+    private boolean peutEtreRenouvele(Contrat contrat) {
+        return contrat.getStatut() == StatutContrat.RESILIER
+                || (contrat.getDateFin() != null && contrat.getDateFin().isBefore(LocalDate.now()));
     }
 
     @GetMapping("/contracts/edit/{id}")
@@ -377,17 +510,41 @@ public class AdminController {
                     "Le motif est obligatoire quand la caution est retenue (partiellement ou totalement).", contrat);
         }
 
+        LocalDate dateDebutParsed = LocalDate.parse(dateDebut);
+        LocalDate dateFinParsed = LocalDate.parse(dateFin);
+        if (dateDebutParsed.isAfter(dateFinParsed)) {
+            return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.", contrat);
+        }
+
+        StatutContrat statutEnum = StatutContrat.valueOf(statut);
+        if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacementId, contrat.getId())) {
+            return rejectContractForm(model,
+                    "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.", contrat);
+        }
+
         // Le statut RESILIER n'est jamais soumis par le <select> du formulaire générique
         // (il n'y figure pas) : ce champ ne peut donc valoir RESILIER ici que si le contrat
         // l'était déjà avant cette édition, via le champ caché dédié du template.
         Map<String, Object> ancienSnapshot = contratSnapshot(contrat);
 
+        // Validation des échéances contre la nouvelle période avant toute modification de
+        // l'entité gérée (JPA) : on valide sur une copie de travail des dates, pas sur
+        // `contrat` lui-même, pour ne rien modifier en base si le formulaire est rejeté.
+        Contrat periodeCandidate = new Contrat();
+        periodeCandidate.setDateDebut(dateDebutParsed);
+        periodeCandidate.setDateFin(dateFinParsed);
+        List<Echeance> echeances = new ArrayList<>();
+        String erreurEcheances = construireEcheances(periodeCandidate, echeanceDates, echeanceMontants, echeanceTypes, echeances);
+        if (erreurEcheances != null) {
+            return rejectContractForm(model, erreurEcheances, contrat);
+        }
+
         contrat.setEmplacement(emplacement);
         contrat.setLocataire(locataire);
-        contrat.setDateDebut(LocalDate.parse(dateDebut));
-        contrat.setDateFin(LocalDate.parse(dateFin));
+        contrat.setDateDebut(dateDebutParsed);
+        contrat.setDateFin(dateFinParsed);
         contrat.setTermes(termes);
-        contrat.setStatut(StatutContrat.valueOf(statut));
+        contrat.setStatut(statutEnum);
         contrat.setMontantLoyer(montantLoyer);
         contrat.setDureeLoyerMois(dureeLoyerMois);
         contrat.setMontantCaution(montantCaution);
@@ -398,7 +555,7 @@ public class AdminController {
         contrat.setDatePreavis((datePreavis == null || datePreavis.isBlank()) ? null : LocalDate.parse(datePreavis));
 
         contratRepository.save(contrat);
-        creerEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes);
+        echeances.forEach(e -> { e.setContrat(contrat); echeanceRepository.save(e); });
         contratStatusService.syncEmplacementStatut(contrat);
 
         Map<String, Object> nouveauSnapshot = contratSnapshot(contrat);
@@ -414,9 +571,15 @@ public class AdminController {
     // chaque contrat a son propre échéancier négocié au cas par cas, saisi ici
     // manuellement par l'admin (dates/montants/types en listes parallèles depuis le
     // formulaire). Type par défaut LOYER si non renseigné.
-    private void creerEcheances(Contrat contrat, List<String> dates, List<String> montants, List<String> types) {
+    //
+    // Ne persiste rien : construit la liste d'Echeance en mémoire (ajoutées à `out`) et
+    // renvoie un message d'erreur dès qu'une date d'échéance sort de la période du
+    // contrat — pour permettre au contrôleur de rejeter tout le formulaire (contrat compris)
+    // avant d'écrire quoi que ce soit en base si une seule échéance est invalide.
+    private String construireEcheances(Contrat contrat, List<String> dates, List<String> montants, List<String> types,
+                                        List<Echeance> out) {
         if (dates == null || montants == null) {
-            return;
+            return null;
         }
         int n = Math.min(dates.size(), montants.size());
         for (int i = 0; i < n; i++) {
@@ -425,15 +588,21 @@ public class AdminController {
             if (dateStr == null || dateStr.isBlank() || montantStr == null || montantStr.isBlank()) {
                 continue;
             }
+            LocalDate dateEcheance = LocalDate.parse(dateStr);
+            if (dateEcheance.isBefore(contrat.getDateDebut()) || dateEcheance.isAfter(contrat.getDateFin())) {
+                return "La date d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        + ") est en dehors de la période du contrat.";
+            }
             Echeance echeance = new Echeance();
             echeance.setContrat(contrat);
-            echeance.setDateEcheance(LocalDate.parse(dateStr));
+            echeance.setDateEcheance(dateEcheance);
             echeance.setMontantDu(new BigDecimal(montantStr.trim()));
-            echeance.setStatut(StatutEcheance.EN_ATTENTE);
+            echeance.setStatut(StatutEcheance.EN_COURS);
             String typeStr = (types != null && i < types.size()) ? types.get(i) : null;
             echeance.setType((typeStr == null || typeStr.isBlank()) ? TypeEcheance.LOYER : TypeEcheance.valueOf(typeStr));
-            echeanceRepository.save(echeance);
+            out.add(echeance);
         }
+        return null;
     }
 
     @GetMapping("/contracts/delete/{id}")
@@ -483,9 +652,15 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/{id}/renew")
-    public String renewContractPage(@PathVariable Long id, Model model) {
+    public String renewContractPage(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         Contrat ancien = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
+
+        if (!peutEtreRenouvele(ancien)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Le renouvellement n'est possible qu'à partir d'un contrat résilié ou expiré.");
+            return "redirect:/admin/contracts/" + id;
+        }
 
         // Renouveler ne modifie jamais l'ancien contrat en place : on pré-remplit juste
         // le formulaire d'ajout avec les infos reprises de l'ancien, lié via contratPrecedent.
@@ -543,15 +718,28 @@ public class AdminController {
 
     // Client Management
     @GetMapping("/clients")
-    public String clientsPage(@RequestParam(required = false) String search, Model model) {
+    public String clientsPage(@RequestParam(required = false) String search,
+                               @RequestParam(required = false) String contratActif, Model model) {
         List<User> clients = (search == null || search.isBlank())
                 ? userRepository.findByRole(Role.ROLE_LOCATAIRE)
                 : userRepository.searchByRoleAndNomOrPrenomOrTelephone(Role.ROLE_LOCATAIRE, search.trim());
 
+        if ("avec".equals(contratActif)) {
+            clients = clients.stream().filter(this::aUnContratActif).toList();
+        } else if ("sans".equals(contratActif)) {
+            clients = clients.stream().filter(c -> !aUnContratActif(c)).toList();
+        }
+
         model.addAttribute("clients", clients);
         model.addAttribute("search", search);
+        model.addAttribute("contratActifFiltre", contratActif);
         model.addAttribute("totalClients", userRepository.findByRole(Role.ROLE_LOCATAIRE).size());
         return "admin-clients";
+    }
+
+    private boolean aUnContratActif(User client) {
+        return contratRepository.findByLocataireId(client.getId()).stream()
+                .anyMatch(c -> c.getStatut() == StatutContrat.VALIDER);
     }
 
     @GetMapping("/clients/add")
@@ -571,6 +759,7 @@ public class AdminController {
 
         String normalizedEmail = (email == null || email.isBlank()) ? null : email.trim();
         String trimmedTelephone = telephone.trim();
+        String normalizedCNI = (numeroCNI == null || numeroCNI.isBlank()) ? null : numeroCNI.trim();
 
         if (normalizedEmail != null && userRepository.findByEmail(normalizedEmail).isPresent()) {
             return rejectClientForm(model, "Cet email est déjà utilisé par un autre client",
@@ -582,12 +771,17 @@ public class AdminController {
                     nom, prenom, trimmedTelephone, normalizedEmail, numeroCNI);
         }
 
+        if (normalizedCNI != null && userRepository.findByNumeroCNI(normalizedCNI).isPresent()) {
+            return rejectClientForm(model, "Ce numéro de CNI est déjà utilisé par un autre client",
+                    nom, prenom, trimmedTelephone, normalizedEmail, numeroCNI);
+        }
+
         User client = new User();
         client.setNom(nom);
         client.setPrenom(prenom);
         client.setTelephone(trimmedTelephone);
         client.setEmail(normalizedEmail);
-        client.setNumeroCNI((numeroCNI == null || numeroCNI.isBlank()) ? null : numeroCNI.trim());
+        client.setNumeroCNI(normalizedCNI);
         client.setRole(Role.ROLE_LOCATAIRE);
         // Compte créé par l'admin : mot de passe aléatoire inutilisable tant qu'aucune
         // procédure de réinitialisation de mot de passe n'existe (le client ne peut donc

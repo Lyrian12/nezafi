@@ -8,52 +8,51 @@
 </head>
 <body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex">
 
-<!-- SIDEBAR -->
-<aside class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-6 fixed h-full z-10">
-    <div>
-        <!-- Logo -->
-        <div class="flex items-center space-x-2 mb-10">
-            <span class="inline-block w-3 h-3 bg-lime-500 rounded-full"></span>
-            <span class="font-bold text-lg tracking-wider text-slate-900">NEZAFI</span>
-        </div>
-        <!-- Navigation -->
-        <nav class="space-y-1">
-            <a th:href="@{/admin/stores}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
-                Gestion des emplacements
-            </a>
-            <a th:href="@{/admin/contracts}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
-                Gestion des contrats
-            </a>
-            <a th:href="@{/admin/clients}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
-                Gestion des clients
-            </a>
-            <a th:href="@{/admin/echeances/en-retard}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
-                Échéances en retard
-            </a>
-            <a th:href="@{/admin/audit}" class="flex items-center px-4 py-3 text-sm font-bold rounded-xl bg-slate-900 text-white">
-                Journal d'audit
-            </a>
-        </nav>
-    </div>
-    <!-- Déconnexion -->
-    <div>
-        <form th:action="@{/logout}" method="post">
-            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <button type="submit" class="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                Déconnexion
-            </button>
-        </form>
-    </div>
-</aside>
+<div th:replace="~{fragments/admin-nav :: sidebar(active='audit')}"></div>
 
 <!-- CONTENU PRINCIPAL -->
 <main class="ml-64 flex-grow p-10">
+
+    <!-- Top bar -->
+    <div class="flex justify-between items-center mb-8">
+        <span class="text-xs text-slate-400 font-medium">Tableau de bord / Journal d'audit</span>
+        <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+    </div>
 
     <!-- En-tête de section -->
     <div class="mb-8">
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-1">Journal d'audit</h1>
         <p class="text-xs text-slate-500">Créations, modifications, suppressions et résiliations sur les paiements, contrats et prix des emplacements.</p>
     </div>
+
+    <!-- Filtres -->
+    <form th:action="@{/admin/audit}" method="get" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6 flex flex-wrap gap-3 items-end">
+        <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Entité</label>
+            <select name="entite" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-slate-400">
+                <option value="">Toutes</option>
+                <option th:each="e : ${entites}" th:value="${e}" th:text="${e}" th:selected="${entiteFiltre == e}">Entité</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Utilisateur</label>
+            <select name="utilisateurId" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-slate-400">
+                <option value="">Tous</option>
+                <option th:each="a : ${admins}" th:value="${a.id}" th:text="${a.prenom + ' ' + a.nom}"
+                        th:selected="${utilisateurIdFiltre != null and utilisateurIdFiltre == a.id}">Admin</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Du</label>
+            <input type="date" name="dateDebut" th:value="${dateDebut}" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-slate-400">
+        </div>
+        <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Au</label>
+            <input type="date" name="dateFin" th:value="${dateFin}" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-slate-400">
+        </div>
+        <button type="submit" class="bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors">Filtrer</button>
+        <a th:href="@{/admin/audit}" class="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-2">Réinitialiser</a>
+    </form>
 
     <!-- Tableau du journal -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
@@ -84,7 +83,7 @@
                     <td class="py-3 px-6 text-slate-500 font-mono text-[11px]" th:text="${entree.nouvelleValeur} ?: '—'">—</td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(entrees)}">
-                    <td colspan="6" class="py-8 px-4 text-center text-slate-400">Aucune entrée dans le journal pour le moment.</td>
+                    <td colspan="6" class="py-8 px-4 text-center text-slate-400">Aucune entrée ne correspond à ces filtres.</td>
                 </tr>
                 </tbody>
             </table>
