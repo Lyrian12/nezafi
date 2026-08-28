@@ -1,5 +1,7 @@
 package com.sagimo.nezafi.echeance;
 
+import com.sagimo.nezafi.audit.AuditService;
+import com.sagimo.nezafi.audit.TypeActionAudit;
 import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
 import com.sagimo.nezafi.paiement.Paiement;
@@ -20,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,15 +41,17 @@ public class EcheanceAdminController {
     private final ContratRepository contratRepository;
     private final UserRepository userRepository;
     private final EcheanceStatusService echeanceStatusService;
+    private final AuditService auditService;
 
     public EcheanceAdminController(EcheanceRepository echeanceRepository, PaiementRepository paiementRepository,
                                     ContratRepository contratRepository, UserRepository userRepository,
-                                    EcheanceStatusService echeanceStatusService) {
+                                    EcheanceStatusService echeanceStatusService, AuditService auditService) {
         this.echeanceRepository = echeanceRepository;
         this.paiementRepository = paiementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
         this.echeanceStatusService = echeanceStatusService;
+        this.auditService = auditService;
     }
 
     @GetMapping("/contracts/{id}")
@@ -98,6 +103,12 @@ public class EcheanceAdminController {
         paiementRepository.save(paiement);
 
         echeanceStatusService.recalculerStatut(echeance);
+
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("echeanceId", echeance.getId());
+        snapshot.put("montantPaye", paiement.getMontantPaye());
+        snapshot.put("datePaiement", paiement.getDatePaiement());
+        auditService.enregistrer(admin, TypeActionAudit.CREATION, "Paiement", paiement.getId(), null, snapshot);
 
         return "redirect:/admin/contracts/" + echeance.getContrat().getId();
     }

@@ -43,6 +43,12 @@ public class Echeance {
     @Column(nullable = false)
     private StatutEcheance statut = StatutEcheance.EN_ATTENTE;
 
+    // Défaut LOYER : rétro-compatible avec les échéances déjà saisies avant l'introduction
+    // de la caution (elles étaient toutes, de fait, des échéances de loyer).
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TypeEcheance type = TypeEcheance.LOYER;
+
     @JsonIgnore
     @OneToMany(mappedBy = "echeance", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Paiement> paiements = new ArrayList<>();

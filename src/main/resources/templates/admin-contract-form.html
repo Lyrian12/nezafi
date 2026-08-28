@@ -30,6 +30,9 @@
             <a th:href="@{/admin/echeances/en-retard}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
                 Échéances en retard
             </a>
+            <a th:href="@{/admin/audit}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
+                Journal d'audit
+            </a>
         </nav>
     </div>
     <!-- Déconnexion -->
@@ -55,17 +58,27 @@
     <!-- Formulaire -->
     <div class="max-w-2xl">
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+
+            <div th:if="${error}" class="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl px-4 py-3 mb-6" th:text="${error}">Erreur</div>
+
+            <div th:if="${contrat.contratPrecedent != null}" class="bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-xl px-4 py-3 mb-6">
+                Renouvellement du contrat #<span th:text="${contrat.contratPrecedent.id}">1</span>
+                (<span th:text="${contrat.contratPrecedent.emplacement.name}">Emplacement</span>) — les dates et l'échéancier sont à ressaisir pour cette nouvelle période.
+            </div>
+
             <form th:action="${contrat.id == null} ? @{/admin/contracts/add} : @{/admin/contracts/edit/{id}(id=${contrat.id})}" method="post" class="space-y-6">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="hidden" name="contratPrecedentId" th:if="${contrat.contratPrecedent != null}" th:value="${contrat.contratPrecedent.id}"/>
 
                 <!-- Store Selection -->
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Emplacement *</label>
-                    <select name="emplacementId" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                    <select id="emplacement-select" name="emplacementId" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
                         <option value="">Sélectionner un emplacement</option>
                         <option th:each="emplacement : ${emplacements}"
                                 th:value="${emplacement.id}"
                                 th:text="${emplacement.name}"
+                                th:attr="data-prix=${emplacement.prix}"
                                 th:selected="${contrat.emplacement != null && contrat.emplacement.id == emplacement.id}">Nom de l'emplacement</option>
                     </select>
                 </div>
@@ -106,13 +119,76 @@
                 <!-- Status -->
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Statut *</label>
-                    <select name="statut" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                    <!-- RESILIER n'est jamais proposé ici : la résiliation passe uniquement par
+                         l'action dédiée (motif obligatoire) sur la fiche contrat. Si le contrat
+                         est déjà résilié, on l'affiche en lecture seule pour ne pas le "dé-résilier"
+                         par erreur en resoumettant ce formulaire. -->
+                    <div th:if="${contrat.statut != null && contrat.statut.name() == 'RESILIER'}">
+                        <input type="hidden" name="statut" value="RESILIER"/>
+                        <p class="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-500">
+                            Résilié — utilisez l'action "Résilier" depuis la fiche contrat pour revenir sur ce statut.
+                        </p>
+                    </div>
+                    <select th:unless="${contrat.statut != null && contrat.statut.name() == 'RESILIER'}" name="statut" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
                         <option value="">Sélectionner un statut</option>
                         <option value="EN_ATTENTE" th:selected="${contrat.statut != null && contrat.statut.name() == 'EN_ATTENTE'}">En Attente</option>
                         <option value="VALIDER" th:selected="${contrat.statut != null && contrat.statut.name() == 'VALIDER'}">Validé</option>
                         <option value="REJETER" th:selected="${contrat.statut != null && contrat.statut.name() == 'REJETER'}">Rejeté</option>
-                        <option value="RESILIER" th:selected="${contrat.statut != null && contrat.statut.name() == 'RESILIER'}">Résilié</option>
                     </select>
+                </div>
+
+                <!-- Loyer -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Durée couverte par le loyer (mois) *</label>
+                        <input type="number" id="duree-loyer" name="dureeLoyerMois" th:value="${contrat.dureeLoyerMois}" min="1" step="1" placeholder="ex : 12" required
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Montant du loyer (FCFA) *</label>
+                        <input type="number" step="0.01" min="0" id="montant-loyer" name="montantLoyer" th:value="${contrat.montantLoyer}" placeholder="Suggéré, modifiable" required
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400 -mt-4">Pratique standard : 12 mois — librement négociable au cas par cas. Le montant est suggéré (durée × prix de l'emplacement) dès que la durée est saisie, et reste modifiable à la main.</p>
+
+                <!-- Caution -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Durée couverte par la caution (mois) *</label>
+                        <input type="number" id="duree-caution" name="dureeCautionMois" th:value="${contrat.dureeCautionMois}" min="0" step="1" placeholder="ex : 12" required
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Montant de la caution (FCFA) *</label>
+                        <input type="number" step="0.01" min="0" id="montant-caution" name="montantCaution" th:value="${contrat.montantCaution}" placeholder="Suggéré, modifiable" required
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400 -mt-4">Indépendante du loyer : durée et montant librement choisis, un locataire peut par exemple payer 6 mois de caution cash et le reste via l'échéancier.</p>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Statut de la caution *</label>
+                    <select name="statutCaution" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                        <option value="DETENUE" th:selected="${contrat.statutCaution == null || contrat.statutCaution.name() == 'DETENUE'}">Détenue</option>
+                        <option value="RESTITUEE" th:selected="${contrat.statutCaution != null && contrat.statutCaution.name() == 'RESTITUEE'}">Restituée</option>
+                        <option value="RETENUE_PARTIELLEMENT" th:selected="${contrat.statutCaution != null && contrat.statutCaution.name() == 'RETENUE_PARTIELLEMENT'}">Retenue partiellement</option>
+                        <option value="RETENUE_TOTALEMENT" th:selected="${contrat.statutCaution != null && contrat.statutCaution.name() == 'RETENUE_TOTALEMENT'}">Retenue totalement</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Motif de retenue de la caution</label>
+                    <p class="text-[11px] text-slate-400 mb-2">Obligatoire uniquement si le statut ci-dessus est "Retenue partiellement" ou "Retenue totalement".</p>
+                    <textarea name="motifRetenueCaution" th:text="${contrat.motifRetenueCaution}" rows="2" placeholder="Facultatif, sauf caution retenue"
+                              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"></textarea>
+                </div>
+
+                <!-- Préavis -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Date de préavis</label>
+                    <input type="date" name="datePreavis" th:value="${contrat.datePreavis}"
+                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
                 <!-- Échéances -->
@@ -122,9 +198,13 @@
                     <div id="echeances-container" class="space-y-3">
                         <div class="flex gap-3 echeance-row">
                             <input type="date" name="echeanceDates" placeholder="Date d'échéance"
-                                   class="w-1/2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                                   class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
                             <input type="number" step="0.01" min="0" name="echeanceMontants" placeholder="Montant dû (FCFA)"
-                                   class="w-1/2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                                   class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                            <select name="echeanceTypes" class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-2 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                                <option value="LOYER">Loyer</option>
+                                <option value="CAUTION">Caution</option>
+                            </select>
                             <button type="button" class="remove-echeance-btn px-3 text-slate-400 hover:text-red-500 transition-colors" title="Retirer cette échéance">✕</button>
                         </div>
                     </div>
@@ -164,6 +244,37 @@
             }
         }
     });
+
+    // Suggestion de montant = durée (mois) × prix de l'emplacement sélectionné.
+    // Reste une suggestion : les champs montant restent librement modifiables ensuite.
+    (function () {
+        var emplacementSelect = document.getElementById('emplacement-select');
+        var dureeLoyer = document.getElementById('duree-loyer');
+        var montantLoyer = document.getElementById('montant-loyer');
+        var dureeCaution = document.getElementById('duree-caution');
+        var montantCaution = document.getElementById('montant-caution');
+
+        function prixEmplacement() {
+            var option = emplacementSelect.options[emplacementSelect.selectedIndex];
+            var prix = option ? parseFloat(option.getAttribute('data-prix')) : NaN;
+            return isNaN(prix) ? null : prix;
+        }
+
+        function suggerer(dureeInput, montantInput) {
+            var prix = prixEmplacement();
+            var duree = parseInt(dureeInput.value, 10);
+            if (prix !== null && !isNaN(duree)) {
+                montantInput.value = (prix * duree).toFixed(2);
+            }
+        }
+
+        emplacementSelect.addEventListener('change', function () {
+            suggerer(dureeLoyer, montantLoyer);
+            suggerer(dureeCaution, montantCaution);
+        });
+        dureeLoyer.addEventListener('input', function () { suggerer(dureeLoyer, montantLoyer); });
+        dureeCaution.addEventListener('input', function () { suggerer(dureeCaution, montantCaution); });
+    })();
 </script>
 
 </body>
