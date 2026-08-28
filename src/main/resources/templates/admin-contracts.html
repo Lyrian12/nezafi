@@ -106,7 +106,8 @@
                 <td class="py-4 px-6 text-slate-600" th:text="${#temporals.format(contract.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
                 <td class="py-4 px-6">
                     <span class="inline-flex items-center font-medium" th:classappend="${contract.statut == 'VALIDER'} ? 'text-green-700' : 'text-slate-400'">
-                        <span class="w-1.5 h-1.5 rounded-full mr-2" th:classappend="${contract.statut == 'VALIDER'} ? 'bg-lime-500' : 'bg-slate-300'"></span>
+                        <span class="w-1.5 h-1.5 rounded-full mr-2"
+                              th:classappend="${contract.statut.name() == 'VALIDER'} ? 'bg-green-500' : (${contract.statut.name() == 'REJETER'} ? 'bg-red-500' : 'bg-orange-500')"></span>
                         <span th:text="${contract.statut}">VALIDER</span>
                     </span>
                 </td>

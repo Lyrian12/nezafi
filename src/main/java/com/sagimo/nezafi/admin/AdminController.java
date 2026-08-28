@@ -10,10 +10,10 @@ import com.sagimo.nezafi.emplacement.StatutEmplacement;
 import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
 import com.sagimo.nezafi.contrat.ContratStatusService;
-import com.sagimo.nezafi.contrat.StatutCaution;
 import com.sagimo.nezafi.contrat.StatutContrat;
 import com.sagimo.nezafi.echeance.Echeance;
 import com.sagimo.nezafi.echeance.EcheanceRepository;
+import com.sagimo.nezafi.echeance.EcheanceStatusService;
 import com.sagimo.nezafi.echeance.StatutEcheance;
 import com.sagimo.nezafi.echeance.TypeEcheance;
 import com.sagimo.nezafi.user.Role;
@@ -58,19 +58,22 @@ public class AdminController {
     private final PasswordEncoder passwordEncoder;
     private final ContratStatusService contratStatusService;
     private final EcheanceRepository echeanceRepository;
+    private final EcheanceStatusService echeanceStatusService;
     private final AuditService auditService;
     private final AdminAlertService adminAlertService;
 
     public AdminController(EmplacementRepository emplacementRepository, ContratRepository contratRepository,
                             UserRepository userRepository, PasswordEncoder passwordEncoder,
                             ContratStatusService contratStatusService, EcheanceRepository echeanceRepository,
-                            AuditService auditService, AdminAlertService adminAlertService) {
+                            EcheanceStatusService echeanceStatusService, AuditService auditService,
+                            AdminAlertService adminAlertService) {
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.contratStatusService = contratStatusService;
         this.echeanceRepository = echeanceRepository;
+        this.echeanceStatusService = echeanceStatusService;
         this.auditService = auditService;
         this.adminAlertService = adminAlertService;
     }
@@ -91,16 +94,9 @@ public class AdminController {
         snapshot.put("dateDebut", contrat.getDateDebut());
         snapshot.put("dateFin", contrat.getDateFin());
         snapshot.put("montantCaution", contrat.getMontantCaution());
-        snapshot.put("statutCaution", contrat.getStatutCaution());
         snapshot.put("motifResiliation", contrat.getMotifResiliation());
         snapshot.put("datePreavis", contrat.getDatePreavis());
         return snapshot;
-    }
-
-    private boolean cautionMotifManquant(StatutCaution statutCaution, String motifRetenueCaution) {
-        boolean retenue = statutCaution == StatutCaution.RETENUE_PARTIELLEMENT
-                || statutCaution == StatutCaution.RETENUE_TOTALEMENT;
-        return retenue && (motifRetenueCaution == null || motifRetenueCaution.isBlank());
     }
 
     private String rejectContractForm(Model model, String error, Contrat contrat) {
@@ -121,6 +117,7 @@ public class AdminController {
             @RequestParam(required = false) BigDecimal prixMax,
             @RequestParam(required = false) BigDecimal superficieMin,
             @RequestParam(required = false) BigDecimal superficieMax,
+            @RequestParam(required = false) StatutEcheance echeanceStatut,
             Model model) {
         List<Emplacement> allStores = emplacementRepository.findAll();
 
@@ -150,6 +147,24 @@ public class AdminController {
         model.addAttribute("emplacementsOrphelins", adminAlertService.emplacementsNonDisponiblesSansContratActif());
         model.addAttribute("contratsEcartLoyer", adminAlertService.contratsAvecEcartLoyerSignificatif());
         model.addAttribute("echeancesExcedentaires", adminAlertService.echeancesAvecPaiementExcedentaire());
+
+        // Widget "Échéances" : toutes les échéances de tous les contrats (pas seulement
+        // celles en retard), avec le même recalcul paresseux de statut que les autres vues,
+        // et un filtre optionnel sur le statut.
+        List<Echeance> toutesEcheances = echeanceRepository.findAll();
+        echeanceStatusService.rafraichirStatuts(toutesEcheances);
+        List<Echeance> echeancesDashboard = toutesEcheances.stream()
+                .filter(e -> echeanceStatut == null || e.getStatut() == echeanceStatut)
+                .sorted(Comparator.comparing(Echeance::getDateEcheance))
+                .toList();
+        Map<Long, BigDecimal> totalPayeParEcheanceDashboard = new HashMap<>();
+        for (Echeance echeance : echeancesDashboard) {
+            totalPayeParEcheanceDashboard.put(echeance.getId(), echeanceStatusService.totalPaye(echeance.getId()));
+        }
+        model.addAttribute("echeancesDashboard", echeancesDashboard);
+        model.addAttribute("totalPayeParEcheanceDashboard", totalPayeParEcheanceDashboard);
+        model.addAttribute("echeanceStatutFiltre", echeanceStatut);
+        model.addAttribute("echeanceStatuts", StatutEcheance.values());
 
         model.addAttribute("totalStores", allStores.size());
         model.addAttribute("activeStoresCount", allStores.stream()
@@ -340,8 +355,6 @@ public class AdminController {
             @RequestParam Integer dureeLoyerMois,
             @RequestParam BigDecimal montantCaution,
             @RequestParam Integer dureeCautionMois,
-            @RequestParam(defaultValue = "DETENUE") String statutCaution,
-            @RequestParam(required = false) String motifRetenueCaution,
             @RequestParam(required = false) String datePreavis,
             @RequestParam(required = false) Long contratPrecedentId,
             @RequestParam(required = false) List<String> echeanceDates,
@@ -355,20 +368,12 @@ public class AdminController {
         User locataire = userRepository.findById(locataireId)
                 .orElseThrow(() -> new RuntimeException("Locataire not found"));
 
-        StatutCaution statutCautionEnum = StatutCaution.valueOf(statutCaution);
-        if (cautionMotifManquant(statutCautionEnum, motifRetenueCaution)) {
-            return rejectContractForm(model,
-                    "Le motif est obligatoire quand la caution est retenue (partiellement ou totalement).",
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                            dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
-        }
-
         LocalDate dateDebutParsed = LocalDate.parse(dateDebut);
         LocalDate dateFinParsed = LocalDate.parse(dateFin);
         if (dateDebutParsed.isAfter(dateFinParsed)) {
             return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.",
                     contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                            dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+                            dureeLoyerMois, montantCaution, dureeCautionMois));
         }
 
         StatutContrat statutEnum = StatutContrat.valueOf(statut);
@@ -376,7 +381,7 @@ public class AdminController {
             return rejectContractForm(model,
                     "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.",
                     contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                            dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+                            dureeLoyerMois, montantCaution, dureeCautionMois));
         }
 
         Contrat contratPrecedent = null;
@@ -386,7 +391,7 @@ public class AdminController {
                 return rejectContractForm(model,
                         "Le renouvellement n'est possible qu'à partir d'un contrat résilié ou expiré.",
                         contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                                dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+                                dureeLoyerMois, montantCaution, dureeCautionMois));
             }
         }
 
@@ -401,9 +406,6 @@ public class AdminController {
         contrat.setDureeLoyerMois(dureeLoyerMois);
         contrat.setMontantCaution(montantCaution);
         contrat.setDureeCautionMois(dureeCautionMois);
-        contrat.setStatutCaution(statutCautionEnum);
-        contrat.setMotifRetenueCaution((motifRetenueCaution == null || motifRetenueCaution.isBlank())
-                ? null : motifRetenueCaution.trim());
         contrat.setDatePreavis((datePreavis == null || datePreavis.isBlank()) ? null : LocalDate.parse(datePreavis));
         contrat.setContratPrecedent(contratPrecedent);
 
@@ -412,7 +414,7 @@ public class AdminController {
         if (erreurEcheances != null) {
             return rejectContractForm(model, erreurEcheances,
                     contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                            dureeLoyerMois, montantCaution, dureeCautionMois, statutCautionEnum));
+                            dureeLoyerMois, montantCaution, dureeCautionMois));
         }
 
         contratRepository.save(contrat);
@@ -428,7 +430,7 @@ public class AdminController {
     /** Reconstruit un Contrat non persisté pour re-remplir le formulaire après un rejet. */
     private Contrat contratPourRejet(Emplacement emplacement, User locataire, String dateDebut, String dateFin,
                                       String termes, String statut, BigDecimal montantLoyer, Integer dureeLoyerMois,
-                                      BigDecimal montantCaution, Integer dureeCautionMois, StatutCaution statutCaution) {
+                                      BigDecimal montantCaution, Integer dureeCautionMois) {
         Contrat rejected = new Contrat();
         rejected.setEmplacement(emplacement);
         rejected.setLocataire(locataire);
@@ -444,7 +446,6 @@ public class AdminController {
         rejected.setDureeLoyerMois(dureeLoyerMois);
         rejected.setMontantCaution(montantCaution);
         rejected.setDureeCautionMois(dureeCautionMois);
-        rejected.setStatutCaution(statutCaution);
         return rejected;
     }
 
@@ -487,8 +488,6 @@ public class AdminController {
             @RequestParam Integer dureeLoyerMois,
             @RequestParam BigDecimal montantCaution,
             @RequestParam Integer dureeCautionMois,
-            @RequestParam(defaultValue = "DETENUE") String statutCaution,
-            @RequestParam(required = false) String motifRetenueCaution,
             @RequestParam(required = false) String datePreavis,
             @RequestParam(required = false) List<String> echeanceDates,
             @RequestParam(required = false) List<String> echeanceMontants,
@@ -503,12 +502,6 @@ public class AdminController {
                 .orElseThrow(() -> new RuntimeException("Store not found"));
         User locataire = userRepository.findById(locataireId)
                 .orElseThrow(() -> new RuntimeException("Locataire not found"));
-
-        StatutCaution statutCautionEnum = StatutCaution.valueOf(statutCaution);
-        if (cautionMotifManquant(statutCautionEnum, motifRetenueCaution)) {
-            return rejectContractForm(model,
-                    "Le motif est obligatoire quand la caution est retenue (partiellement ou totalement).", contrat);
-        }
 
         LocalDate dateDebutParsed = LocalDate.parse(dateDebut);
         LocalDate dateFinParsed = LocalDate.parse(dateFin);
@@ -549,9 +542,6 @@ public class AdminController {
         contrat.setDureeLoyerMois(dureeLoyerMois);
         contrat.setMontantCaution(montantCaution);
         contrat.setDureeCautionMois(dureeCautionMois);
-        contrat.setStatutCaution(statutCautionEnum);
-        contrat.setMotifRetenueCaution((motifRetenueCaution == null || motifRetenueCaution.isBlank())
-                ? null : motifRetenueCaution.trim());
         contrat.setDatePreavis((datePreavis == null || datePreavis.isBlank()) ? null : LocalDate.parse(datePreavis));
 
         contratRepository.save(contrat);
@@ -673,7 +663,6 @@ public class AdminController {
         nouveau.setDureeLoyerMois(ancien.getDureeLoyerMois());
         nouveau.setMontantCaution(ancien.getMontantCaution());
         nouveau.setDureeCautionMois(ancien.getDureeCautionMois());
-        nouveau.setStatutCaution(StatutCaution.DETENUE);
         nouveau.setContratPrecedent(ancien);
 
         model.addAttribute("contrat", nouveau);

@@ -45,7 +45,7 @@
     <!-- Loyer / Caution -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
         <h2 class="text-lg font-bold text-slate-900 mb-4">Loyer &amp; caution</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-6 text-xs">
             <div>
                 <p class="text-slate-400 uppercase text-[10px] font-bold mb-1">Loyer</p>
                 <p class="font-semibold text-slate-900" th:text="${#numbers.formatDecimal(contrat.montantLoyer, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</p>
@@ -55,11 +55,6 @@
                 <p class="text-slate-400 uppercase text-[10px] font-bold mb-1">Caution</p>
                 <p class="font-semibold text-slate-900" th:text="${#numbers.formatDecimal(contrat.montantCaution, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</p>
                 <p class="text-slate-500" th:text="${contrat.dureeCautionMois} + ' mois couverts'">12 mois couverts</p>
-            </div>
-            <div>
-                <p class="text-slate-400 uppercase text-[10px] font-bold mb-1">Statut caution</p>
-                <p class="font-semibold text-slate-900" th:text="${contrat.statutCaution}">DETENUE</p>
-                <p class="text-slate-500" th:if="${contrat.motifRetenueCaution}" th:text="${contrat.motifRetenueCaution}">Motif</p>
             </div>
             <div>
                 <p class="text-slate-400 uppercase text-[10px] font-bold mb-1">Préavis</p>

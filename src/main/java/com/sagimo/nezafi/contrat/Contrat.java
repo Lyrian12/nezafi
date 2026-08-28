@@ -65,15 +65,6 @@ public class Contrat {
     @Column(nullable = false)
     private Integer dureeCautionMois;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private StatutCaution statutCaution = StatutCaution.DETENUE;
-
-    // Obligatoire uniquement quand statutCaution vaut RETENUE_PARTIELLEMENT ou
-    // RETENUE_TOTALEMENT (validé côté contrôleur, pas de contrainte DB).
-    @Column(length = 1000)
-    private String motifRetenueCaution;
-
     // Obligatoire uniquement quand statut passe à RESILIER (validé côté contrôleur,
     // via l'action dédiée de résiliation — jamais modifiable depuis le formulaire
     // générique d'édition).
