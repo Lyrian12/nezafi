@@ -32,3 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 cookies.txt
+
+### ENV files ##
+.env
