@@ -103,6 +103,9 @@ public class DataSeeder implements CommandLineRunner {
         Contrat contratKamdem = creerContrat(boutiqueTextile, paulKamdem, StatutContrat.VALIDER,
                 LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
                 "1200000.00", 12, "1200000.00", 12);
+        contratKamdem.setActivite("Vente de vêtements");
+        contratKamdem.setNomEnseigne("Les Tiktokeurs");
+        contratRepository.save(contratKamdem);
         payer(creerEcheance(contratKamdem, TypeEcheance.LOYER, LocalDate.of(2026, 1, 5), "400000.00"),
                 LocalDate.of(2026, 1, 5));
         creerEcheance(contratKamdem, TypeEcheance.LOYER, LocalDate.of(2026, 5, 5), "400000.00"); // volontairement en retard
@@ -114,6 +117,9 @@ public class DataSeeder implements CommandLineRunner {
         Contrat contratNjoya = creerContrat(magasinElectronique, aminatouNjoya, StatutContrat.VALIDER,
                 LocalDate.of(2026, 3, 1), LocalDate.of(2027, 2, 28),
                 "2400000.00", 12, "1200000.00", 6);
+        contratNjoya.setActivite("Vente d'appareils électroniques");
+        contratNjoya.setNomEnseigne("ETS WANG");
+        contratRepository.save(contratNjoya);
         payer(creerEcheance(contratNjoya, TypeEcheance.LOYER, LocalDate.of(2026, 3, 5), "1200000.00"),
                 LocalDate.of(2026, 3, 5));
         creerEcheance(contratNjoya, TypeEcheance.LOYER, LocalDate.of(2026, 9, 5), "1200000.00"); // pas encore due

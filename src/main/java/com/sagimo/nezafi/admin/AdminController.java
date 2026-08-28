@@ -315,7 +315,9 @@ public class AdminController {
                 .filter(c -> terme == null
                         || c.getEmplacement().getName().toLowerCase().contains(terme)
                         || c.getLocataire().getNom().toLowerCase().contains(terme)
-                        || c.getLocataire().getPrenom().toLowerCase().contains(terme))
+                        || c.getLocataire().getPrenom().toLowerCase().contains(terme)
+                        || (c.getNomEnseigne() != null && c.getNomEnseigne().toLowerCase().contains(terme))
+                        || (c.getActivite() != null && c.getActivite().toLowerCase().contains(terme)))
                 .toList();
         model.addAttribute("contracts", filteredContracts);
         model.addAttribute("statutFiltre", statut);
@@ -350,6 +352,8 @@ public class AdminController {
             @RequestParam String dateDebut,
             @RequestParam String dateFin,
             @RequestParam(required = false) String termes,
+            @RequestParam(required = false) String activite,
+            @RequestParam(required = false) String nomEnseigne,
             @RequestParam String statut,
             @RequestParam BigDecimal montantLoyer,
             @RequestParam Integer dureeLoyerMois,
@@ -372,16 +376,16 @@ public class AdminController {
         LocalDate dateFinParsed = LocalDate.parse(dateFin);
         if (dateDebutParsed.isAfter(dateFinParsed)) {
             return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.",
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                            dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
         }
 
         StatutContrat statutEnum = StatutContrat.valueOf(statut);
         if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacement.getId(), null)) {
             return rejectContractForm(model,
                     "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.",
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                            dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
         }
 
         Contrat contratPrecedent = null;
@@ -390,8 +394,8 @@ public class AdminController {
             if (contratPrecedent != null && !peutEtreRenouvele(contratPrecedent)) {
                 return rejectContractForm(model,
                         "Le renouvellement n'est possible qu'à partir d'un contrat résilié ou expiré.",
-                        contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                                dureeLoyerMois, montantCaution, dureeCautionMois));
+                        contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                                statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
             }
         }
 
@@ -401,6 +405,8 @@ public class AdminController {
         contrat.setDateDebut(dateDebutParsed);
         contrat.setDateFin(dateFinParsed);
         contrat.setTermes(termes);
+        contrat.setActivite((activite == null || activite.isBlank()) ? null : activite.trim());
+        contrat.setNomEnseigne((nomEnseigne == null || nomEnseigne.isBlank()) ? null : nomEnseigne.trim());
         contrat.setStatut(statutEnum);
         contrat.setMontantLoyer(montantLoyer);
         contrat.setDureeLoyerMois(dureeLoyerMois);
@@ -413,8 +419,8 @@ public class AdminController {
         String erreurEcheances = construireEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes, echeances);
         if (erreurEcheances != null) {
             return rejectContractForm(model, erreurEcheances,
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, statut, montantLoyer,
-                            dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
         }
 
         contratRepository.save(contrat);
@@ -429,7 +435,8 @@ public class AdminController {
 
     /** Reconstruit un Contrat non persisté pour re-remplir le formulaire après un rejet. */
     private Contrat contratPourRejet(Emplacement emplacement, User locataire, String dateDebut, String dateFin,
-                                      String termes, String statut, BigDecimal montantLoyer, Integer dureeLoyerMois,
+                                      String termes, String activite, String nomEnseigne, String statut,
+                                      BigDecimal montantLoyer, Integer dureeLoyerMois,
                                       BigDecimal montantCaution, Integer dureeCautionMois) {
         Contrat rejected = new Contrat();
         rejected.setEmplacement(emplacement);
@@ -441,6 +448,8 @@ public class AdminController {
             // Dates invalides ou absentes : le formulaire les affichera simplement vides.
         }
         rejected.setTermes(termes);
+        rejected.setActivite(activite);
+        rejected.setNomEnseigne(nomEnseigne);
         rejected.setStatut(StatutContrat.valueOf(statut));
         rejected.setMontantLoyer(montantLoyer);
         rejected.setDureeLoyerMois(dureeLoyerMois);
@@ -483,6 +492,8 @@ public class AdminController {
             @RequestParam String dateDebut,
             @RequestParam String dateFin,
             @RequestParam(required = false) String termes,
+            @RequestParam(required = false) String activite,
+            @RequestParam(required = false) String nomEnseigne,
             @RequestParam String statut,
             @RequestParam BigDecimal montantLoyer,
             @RequestParam Integer dureeLoyerMois,
@@ -537,6 +548,8 @@ public class AdminController {
         contrat.setDateDebut(dateDebutParsed);
         contrat.setDateFin(dateFinParsed);
         contrat.setTermes(termes);
+        contrat.setActivite((activite == null || activite.isBlank()) ? null : activite.trim());
+        contrat.setNomEnseigne((nomEnseigne == null || nomEnseigne.isBlank()) ? null : nomEnseigne.trim());
         contrat.setStatut(statutEnum);
         contrat.setMontantLoyer(montantLoyer);
         contrat.setDureeLoyerMois(dureeLoyerMois);

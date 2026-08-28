@@ -41,6 +41,14 @@ public class Contrat {
     @Column(length = 1000)
     private String termes;
 
+    // Activité exercée par le locataire dans cette boutique (ex : "Vente de vêtements",
+    // "Restauration rapide") — distincte de la catégorie de l'emplacement (Boutique/Magasin).
+    private String activite;
+
+    // Nom sous lequel le client présente sa boutique au public (ex : "Les Tiktokeurs",
+    // "ETS WANG") — distinct du nom légal du client (nom/prenom sur son compte).
+    private String nomEnseigne;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutContrat statut = StatutContrat.EN_ATTENTE;
