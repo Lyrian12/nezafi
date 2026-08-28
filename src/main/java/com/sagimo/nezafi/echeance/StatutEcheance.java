@@ -1,7 +1,7 @@
 package com.sagimo.nezafi.echeance;
 
 public enum StatutEcheance {
-    EN_ATTENTE,
+    EN_COURS,
     PAYEE,
     EN_RETARD
 }

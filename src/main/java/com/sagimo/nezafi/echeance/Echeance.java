@@ -41,7 +41,7 @@ public class Echeance {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private StatutEcheance statut = StatutEcheance.EN_ATTENTE;
+    private StatutEcheance statut = StatutEcheance.EN_COURS;
 
     // Défaut LOYER : rétro-compatible avec les échéances déjà saisies avant l'introduction
     // de la caution (elles étaient toutes, de fait, des échéances de loyer).

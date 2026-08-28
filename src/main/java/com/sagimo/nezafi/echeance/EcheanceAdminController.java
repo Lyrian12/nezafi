@@ -1,5 +1,6 @@
 package com.sagimo.nezafi.echeance;
 
+import com.sagimo.nezafi.admin.AdminAlertService;
 import com.sagimo.nezafi.audit.AuditService;
 import com.sagimo.nezafi.audit.TypeActionAudit;
 import com.sagimo.nezafi.contrat.Contrat;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,16 +44,19 @@ public class EcheanceAdminController {
     private final UserRepository userRepository;
     private final EcheanceStatusService echeanceStatusService;
     private final AuditService auditService;
+    private final AdminAlertService adminAlertService;
 
     public EcheanceAdminController(EcheanceRepository echeanceRepository, PaiementRepository paiementRepository,
                                     ContratRepository contratRepository, UserRepository userRepository,
-                                    EcheanceStatusService echeanceStatusService, AuditService auditService) {
+                                    EcheanceStatusService echeanceStatusService, AuditService auditService,
+                                    AdminAlertService adminAlertService) {
         this.echeanceRepository = echeanceRepository;
         this.paiementRepository = paiementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
         this.echeanceStatusService = echeanceStatusService;
         this.auditService = auditService;
+        this.adminAlertService = adminAlertService;
     }
 
     @GetMapping("/contracts/{id}")
@@ -75,6 +80,9 @@ public class EcheanceAdminController {
         model.addAttribute("echeances", echeances);
         model.addAttribute("paiementsParEcheance", paiementsParEcheance);
         model.addAttribute("totalPayeParEcheance", totalPayeParEcheance);
+        // Alerte non bloquante, contextuelle à cette fiche : écart significatif entre le
+        // total des échéances LOYER et le montantLoyer déclaré sur le contrat.
+        model.addAttribute("ecartLoyerSignificatif", adminAlertService.ecartLoyerSignificatif(contrat));
         return "admin-contract-detail";
     }
 
@@ -84,7 +92,8 @@ public class EcheanceAdminController {
             @RequestParam BigDecimal montantPaye,
             @RequestParam String datePaiement,
             @RequestParam(required = false) String cheminRecu,
-            Authentication authentication) {
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
 
         Echeance echeance = echeanceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Echeance not found"));
@@ -110,28 +119,61 @@ public class EcheanceAdminController {
         snapshot.put("datePaiement", paiement.getDatePaiement());
         auditService.enregistrer(admin, TypeActionAudit.CREATION, "Paiement", paiement.getId(), null, snapshot);
 
+        // Alerte non bloquante : le paiement est bien enregistré, mais un dépassement du
+        // montant dû mérite d'être signalé à l'admin (trop-perçu, saisie erronée...).
+        if (echeanceStatusService.totalPaye(echeance.getId()).compareTo(echeance.getMontantDu()) > 0) {
+            redirectAttributes.addFlashAttribute("warning",
+                    "Ce paiement porte le total payé au-delà du montant dû pour cette échéance.");
+        }
+
         return "redirect:/admin/contracts/" + echeance.getContrat().getId();
     }
 
-    @GetMapping("/echeances/en-retard")
-    public String echeancesEnRetard(Model model) {
+    @GetMapping("/echeances")
+    public String echeancesPage(
+            @RequestParam(required = false) StatutEcheance statut,
+            @RequestParam(required = false) TypeEcheance type,
+            @RequestParam(required = false) String dateDebut,
+            @RequestParam(required = false) String dateFin,
+            Model model) {
         LocalDate today = LocalDate.now();
 
-        // Recalcul paresseux : fait remonter en EN_RETARD les échéances EN_ATTENTE
+        // Recalcul paresseux : fait remonter en EN_RETARD les échéances EN_COURS
         // dont la date est dépassée, sans tâche planifiée.
-        List<Echeance> candidates = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_ATTENTE, today);
+        List<Echeance> candidates = echeanceRepository.findByStatutAndDateEcheanceBefore(StatutEcheance.EN_COURS, today);
         echeanceStatusService.rafraichirStatuts(candidates);
 
-        List<Echeance> enRetard = echeanceRepository.findByStatut(StatutEcheance.EN_RETARD);
-        enRetard.sort(Comparator.comparing(Echeance::getDateEcheance));
+        LocalDate dateDebutParsed = (dateDebut == null || dateDebut.isBlank()) ? null : LocalDate.parse(dateDebut);
+        LocalDate dateFinParsed = (dateFin == null || dateFin.isBlank()) ? null : LocalDate.parse(dateFin);
+
+        List<Echeance> echeances = echeanceRepository.findAll().stream()
+                .filter(e -> statut == null || e.getStatut() == statut)
+                .filter(e -> type == null || e.getType() == type)
+                .filter(e -> dateDebutParsed == null || !e.getDateEcheance().isBefore(dateDebutParsed))
+                .filter(e -> dateFinParsed == null || !e.getDateEcheance().isAfter(dateFinParsed))
+                .sorted(Comparator.comparing(Echeance::getDateEcheance))
+                .toList();
 
         Map<Long, BigDecimal> totalPayeParEcheance = new HashMap<>();
-        for (Echeance echeance : enRetard) {
+        for (Echeance echeance : echeances) {
             totalPayeParEcheance.put(echeance.getId(), echeanceStatusService.totalPaye(echeance.getId()));
         }
 
-        model.addAttribute("echeances", enRetard);
+        model.addAttribute("echeances", echeances);
         model.addAttribute("totalPayeParEcheance", totalPayeParEcheance);
-        return "admin-echeances-retard";
+        model.addAttribute("statutFiltre", statut);
+        model.addAttribute("typeFiltre", type);
+        model.addAttribute("dateDebut", dateDebut);
+        model.addAttribute("dateFin", dateFin);
+        model.addAttribute("statuts", StatutEcheance.values());
+        model.addAttribute("types", TypeEcheance.values());
+        return "admin-echeances";
+    }
+
+    // Ancien lien "Échéances en retard" : conservé pour ne pas casser un signet existant,
+    // redirige vers la vue générale pré-filtrée sur EN_RETARD.
+    @GetMapping("/echeances/en-retard")
+    public String echeancesEnRetard() {
+        return "redirect:/admin/echeances?statut=EN_RETARD";
     }
 }
