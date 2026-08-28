@@ -9,6 +9,9 @@ import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
 import com.sagimo.nezafi.contrat.ContratStatusService;
 import com.sagimo.nezafi.contrat.StatutContrat;
+import com.sagimo.nezafi.echeance.Echeance;
+import com.sagimo.nezafi.echeance.EcheanceRepository;
+import com.sagimo.nezafi.echeance.StatutEcheance;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
@@ -43,15 +46,17 @@ public class AdminController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final ContratStatusService contratStatusService;
+    private final EcheanceRepository echeanceRepository;
 
     public AdminController(EmplacementRepository emplacementRepository, ContratRepository contratRepository,
                             UserRepository userRepository, PasswordEncoder passwordEncoder,
-                            ContratStatusService contratStatusService) {
+                            ContratStatusService contratStatusService, EcheanceRepository echeanceRepository) {
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.contratStatusService = contratStatusService;
+        this.echeanceRepository = echeanceRepository;
     }
 
     // Store Management
@@ -182,7 +187,39 @@ public class AdminController {
     public String addContractPage(Model model) {
         model.addAttribute("contrat", new Contrat());
         model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
+    }
+
+    @PostMapping("/contracts/add")
+    public String addContract(
+            @RequestParam Long emplacementId,
+            @RequestParam Long locataireId,
+            @RequestParam String dateDebut,
+            @RequestParam String dateFin,
+            @RequestParam(required = false) String termes,
+            @RequestParam String statut,
+            @RequestParam(required = false) List<String> echeanceDates,
+            @RequestParam(required = false) List<String> echeanceMontants) {
+
+        Emplacement emplacement = emplacementRepository.findById(emplacementId)
+                .orElseThrow(() -> new RuntimeException("Store not found"));
+        User locataire = userRepository.findById(locataireId)
+                .orElseThrow(() -> new RuntimeException("Locataire not found"));
+
+        Contrat contrat = new Contrat();
+        contrat.setEmplacement(emplacement);
+        contrat.setLocataire(locataire);
+        contrat.setDateDebut(LocalDate.parse(dateDebut));
+        contrat.setDateFin(LocalDate.parse(dateFin));
+        contrat.setTermes(termes);
+        contrat.setStatut(StatutContrat.valueOf(statut));
+        contratRepository.save(contrat);
+
+        creerEcheances(contrat, echeanceDates, echeanceMontants);
+        contratStatusService.syncEmplacementStatut(contrat);
+
+        return "redirect:/admin/contracts/" + contrat.getId();
     }
 
     @GetMapping("/contracts/edit/{id}")
@@ -191,6 +228,7 @@ public class AdminController {
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
         model.addAttribute("contrat", contrat);
         model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
     }
 
@@ -198,24 +236,56 @@ public class AdminController {
     public String editContract(
             @PathVariable Long id,
             @RequestParam Long emplacementId,
+            @RequestParam Long locataireId,
             @RequestParam String dateDebut,
             @RequestParam String dateFin,
-            @RequestParam String termes,
-            @RequestParam String statut) {
+            @RequestParam(required = false) String termes,
+            @RequestParam String statut,
+            @RequestParam(required = false) List<String> echeanceDates,
+            @RequestParam(required = false) List<String> echeanceMontants) {
 
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
 
         Emplacement emplacement = emplacementRepository.findById(emplacementId)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
+        User locataire = userRepository.findById(locataireId)
+                .orElseThrow(() -> new RuntimeException("Locataire not found"));
 
         contrat.setEmplacement(emplacement);
+        contrat.setLocataire(locataire);
+        contrat.setDateDebut(LocalDate.parse(dateDebut));
+        contrat.setDateFin(LocalDate.parse(dateFin));
         contrat.setTermes(termes);
         contrat.setStatut(StatutContrat.valueOf(statut));
 
         contratRepository.save(contrat);
+        creerEcheances(contrat, echeanceDates, echeanceMontants);
         contratStatusService.syncEmplacementStatut(contrat);
         return "redirect:/admin/contracts";
+    }
+
+    // Les échéances ne sont jamais générées automatiquement selon une périodicité :
+    // chaque contrat a son propre échéancier négocié au cas par cas, saisi ici
+    // manuellement par l'admin (dates/montants en listes parallèles depuis le formulaire).
+    private void creerEcheances(Contrat contrat, List<String> dates, List<String> montants) {
+        if (dates == null || montants == null) {
+            return;
+        }
+        int n = Math.min(dates.size(), montants.size());
+        for (int i = 0; i < n; i++) {
+            String dateStr = dates.get(i);
+            String montantStr = montants.get(i);
+            if (dateStr == null || dateStr.isBlank() || montantStr == null || montantStr.isBlank()) {
+                continue;
+            }
+            Echeance echeance = new Echeance();
+            echeance.setContrat(contrat);
+            echeance.setDateEcheance(LocalDate.parse(dateStr));
+            echeance.setMontantDu(new BigDecimal(montantStr.trim()));
+            echeance.setStatut(StatutEcheance.EN_ATTENTE);
+            echeanceRepository.save(echeance);
+        }
     }
 
     @GetMapping("/contracts/delete/{id}")

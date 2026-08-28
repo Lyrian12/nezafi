@@ -1,5 +1,7 @@
 package com.sagimo.nezafi.contrat;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.sagimo.nezafi.echeance.Echeance;
 import com.sagimo.nezafi.emplacement.Emplacement;
 import com.sagimo.nezafi.user.User;
 import jakarta.persistence.*;
@@ -8,6 +10,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "contrats")
@@ -39,4 +43,8 @@ public class Contrat {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatutContrat statut = StatutContrat.EN_ATTENTE;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "contrat", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Echeance> echeances = new ArrayList<>();
 }
