@@ -1,10 +1,10 @@
 package com.sagimo.nezafi.admin;
 
-import com.sagimo.nezafi.boutique.Boutique;
-import com.sagimo.nezafi.boutique.BoutiqueRepository;
-import com.sagimo.nezafi.boutique.CategorieBoutique;
-import com.sagimo.nezafi.boutique.Palier;
-import com.sagimo.nezafi.boutique.StatutBoutique;
+import com.sagimo.nezafi.emplacement.CategorieEmplacement;
+import com.sagimo.nezafi.emplacement.Emplacement;
+import com.sagimo.nezafi.emplacement.EmplacementRepository;
+import com.sagimo.nezafi.emplacement.Palier;
+import com.sagimo.nezafi.emplacement.StatutEmplacement;
 import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
 import com.sagimo.nezafi.contrat.ContratStatusService;
@@ -38,16 +38,16 @@ import java.util.UUID;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
-    private final BoutiqueRepository boutiqueRepository;
+    private final EmplacementRepository emplacementRepository;
     private final ContratRepository contratRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final ContratStatusService contratStatusService;
 
-    public AdminController(BoutiqueRepository boutiqueRepository, ContratRepository contratRepository,
+    public AdminController(EmplacementRepository emplacementRepository, ContratRepository contratRepository,
                             UserRepository userRepository, PasswordEncoder passwordEncoder,
                             ContratStatusService contratStatusService) {
-        this.boutiqueRepository = boutiqueRepository;
+        this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -57,19 +57,19 @@ public class AdminController {
     // Store Management
     @GetMapping("/stores")
     public String storesPage(Model model) {
-        List<Boutique> allStores = boutiqueRepository.findAll();
+        List<Emplacement> allStores = emplacementRepository.findAll();
         model.addAttribute("stores", allStores);
         model.addAttribute("totalStores", allStores.size());
         model.addAttribute("activeStoresCount", allStores.stream()
-                .filter(b -> b.getStatut() == StatutBoutique.DISPONIBLE).count());
+                .filter(b -> b.getStatut() == StatutEmplacement.DISPONIBLE).count());
 
-        List<Boutique> occupiedStores = allStores.stream()
-                .filter(b -> b.getStatut() == StatutBoutique.NON_DISPONIBLE)
+        List<Emplacement> occupiedStores = allStores.stream()
+                .filter(b -> b.getStatut() == StatutEmplacement.NON_DISPONIBLE)
                 .toList();
         model.addAttribute("pendingStoresCount", occupiedStores.size());
 
         BigDecimal revenueToday = occupiedStores.stream()
-                .map(Boutique::getPrix)
+                .map(Emplacement::getPrix)
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         model.addAttribute("revenueToday", revenueToday);
@@ -78,7 +78,7 @@ public class AdminController {
                 .map(palier -> {
                     long total = allStores.stream().filter(b -> b.getPalier() == palier).count();
                     long occupied = allStores.stream()
-                            .filter(b -> b.getPalier() == palier && b.getStatut() == StatutBoutique.NON_DISPONIBLE)
+                            .filter(b -> b.getPalier() == palier && b.getStatut() == StatutEmplacement.NON_DISPONIBLE)
                             .count();
                     double percentage = total == 0 ? 0.0 : (occupied * 100.0 / total);
                     return new PalierOccupancy(palier, occupied, total, percentage);
@@ -91,7 +91,7 @@ public class AdminController {
 
     @GetMapping("/stores/add")
     public String addStorePage(Model model) {
-        model.addAttribute("boutique", new Boutique());
+        model.addAttribute("emplacement", new Emplacement());
         return "admin-store-form";
     }
 
@@ -105,25 +105,25 @@ public class AdminController {
             @RequestParam BigDecimal prix,
             @RequestParam String categorie) {
 
-        Boutique boutique = new Boutique();
-        boutique.setName(name);
-        boutique.setImageUrl(imageUrl);
-        boutique.setStatut(StatutBoutique.valueOf(statut));
-        boutique.setPalier(Palier.valueOf(palier));
-        boutique.setSuperficie(superficie);
-        boutique.setPrix(prix);
-        boutique.setCategorie(CategorieBoutique.valueOf(categorie));
-        boutique.setAddedAt(LocalDateTime.now());
+        Emplacement emplacement = new Emplacement();
+        emplacement.setName(name);
+        emplacement.setImageUrl(imageUrl);
+        emplacement.setStatut(StatutEmplacement.valueOf(statut));
+        emplacement.setPalier(Palier.valueOf(palier));
+        emplacement.setSuperficie(superficie);
+        emplacement.setPrix(prix);
+        emplacement.setCategorie(CategorieEmplacement.valueOf(categorie));
+        emplacement.setAddedAt(LocalDateTime.now());
 
-        boutiqueRepository.save(boutique);
+        emplacementRepository.save(emplacement);
         return "redirect:/admin/stores";
     }
 
     @GetMapping("/stores/edit/{id}")
     public String editStorePage(@PathVariable Long id, Model model) {
-        Boutique boutique = boutiqueRepository.findById(id)
+        Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
-        model.addAttribute("boutique", boutique);
+        model.addAttribute("emplacement", emplacement);
         return "admin-store-form";
     }
 
@@ -138,24 +138,24 @@ public class AdminController {
             @RequestParam BigDecimal prix,
             @RequestParam String categorie) {
 
-        Boutique boutique = boutiqueRepository.findById(id)
+        Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
 
-        boutique.setName(name);
-        boutique.setImageUrl(imageUrl);
-        boutique.setStatut(StatutBoutique.valueOf(statut));
-        boutique.setPalier(Palier.valueOf(palier));
-        boutique.setSuperficie(superficie);
-        boutique.setPrix(prix);
-        boutique.setCategorie(CategorieBoutique.valueOf(categorie));
+        emplacement.setName(name);
+        emplacement.setImageUrl(imageUrl);
+        emplacement.setStatut(StatutEmplacement.valueOf(statut));
+        emplacement.setPalier(Palier.valueOf(palier));
+        emplacement.setSuperficie(superficie);
+        emplacement.setPrix(prix);
+        emplacement.setCategorie(CategorieEmplacement.valueOf(categorie));
 
-        boutiqueRepository.save(boutique);
+        emplacementRepository.save(emplacement);
         return "redirect:/admin/stores";
     }
 
     @GetMapping("/stores/delete/{id}")
     public String deleteStore(@PathVariable Long id) {
-        boutiqueRepository.deleteById(id);
+        emplacementRepository.deleteById(id);
         return "redirect:/admin/stores";
     }
 
@@ -181,7 +181,7 @@ public class AdminController {
     @GetMapping("/contracts/add")
     public String addContractPage(Model model) {
         model.addAttribute("contrat", new Contrat());
-        model.addAttribute("boutiques", boutiqueRepository.findAll());
+        model.addAttribute("emplacements", emplacementRepository.findAll());
         return "admin-contract-form";
     }
 
@@ -190,14 +190,14 @@ public class AdminController {
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
         model.addAttribute("contrat", contrat);
-        model.addAttribute("boutiques", boutiqueRepository.findAll());
+        model.addAttribute("emplacements", emplacementRepository.findAll());
         return "admin-contract-form";
     }
 
     @PostMapping("/contracts/edit/{id}")
     public String editContract(
             @PathVariable Long id,
-            @RequestParam Long boutiqueId,
+            @RequestParam Long emplacementId,
             @RequestParam String dateDebut,
             @RequestParam String dateFin,
             @RequestParam String termes,
@@ -206,24 +206,24 @@ public class AdminController {
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
 
-        Boutique boutique = boutiqueRepository.findById(boutiqueId)
+        Emplacement emplacement = emplacementRepository.findById(emplacementId)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
 
-        contrat.setBoutique(boutique);
+        contrat.setEmplacement(emplacement);
         contrat.setTermes(termes);
         contrat.setStatut(StatutContrat.valueOf(statut));
 
         contratRepository.save(contrat);
-        contratStatusService.syncBoutiqueStatut(contrat);
+        contratStatusService.syncEmplacementStatut(contrat);
         return "redirect:/admin/contracts";
     }
 
     @GetMapping("/contracts/delete/{id}")
     public String deleteContract(@PathVariable Long id) {
         contratRepository.findById(id).ifPresent(contrat -> {
-            // Un contrat supprimé ne pilote plus la boutique : elle doit être libérée,
+            // Un contrat supprimé ne pilote plus l'emplacement : il doit être libéré,
             // indépendamment du statut qu'avait le contrat avant sa suppression.
-            contratStatusService.libererBoutique(contrat.getBoutique());
+            contratStatusService.libererEmplacement(contrat.getEmplacement());
             contratRepository.deleteById(id);
         });
         return "redirect:/admin/contracts";
@@ -239,12 +239,12 @@ public class AdminController {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         PrintWriter writer = response.getWriter();
         writer.write(0xFEFF); // BOM UTF-8 pour un affichage correct des accents dans Excel
-        writer.println("Boutique;Locataire;Loyer (FCFA);Date de début;Date de fin");
+        writer.println("Emplacement;Locataire;Loyer (FCFA);Date de début;Date de fin");
 
         for (Contrat contrat : activeContracts) {
-            BigDecimal loyer = contrat.getBoutique().getPrix();
+            BigDecimal loyer = contrat.getEmplacement().getPrix();
             writer.println(String.join(";",
-                    csvField(contrat.getBoutique().getName()),
+                    csvField(contrat.getEmplacement().getName()),
                     csvField(contrat.getLocataire().getPrenom() + " " + contrat.getLocataire().getNom()),
                     loyer != null ? loyer.toPlainString() : "",
                     contrat.getDateDebut().format(dateFormatter),

@@ -1,6 +1,6 @@
 package com.sagimo.nezafi.contrat;
 
-import com.sagimo.nezafi.boutique.Boutique;
+import com.sagimo.nezafi.emplacement.Emplacement;
 import com.sagimo.nezafi.user.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -20,8 +20,8 @@ public class Contrat {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "boutique_id", nullable = false)
-    private Boutique boutique;
+    @JoinColumn(name = "emplacement_id", nullable = false)
+    private Emplacement emplacement;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "locataire_id", nullable = false)

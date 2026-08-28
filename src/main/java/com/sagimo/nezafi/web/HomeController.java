@@ -1,6 +1,6 @@
 package com.sagimo.nezafi.web;
 
-import com.sagimo.nezafi.boutique.BoutiqueRepository;
+import com.sagimo.nezafi.emplacement.EmplacementRepository;
 import com.sagimo.nezafi.contrat.ContratRepository;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
@@ -13,14 +13,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class HomeController {
 
     private final UserRepository userRepository;
-    private final BoutiqueRepository boutiqueRepository;
+    private final EmplacementRepository emplacementRepository;
     private final ContratRepository contratRepository;
 
     public HomeController(UserRepository userRepository,
-                         BoutiqueRepository boutiqueRepository,
+                         EmplacementRepository emplacementRepository,
                          ContratRepository contratRepository) {
         this.userRepository = userRepository;
-        this.boutiqueRepository = boutiqueRepository;
+        this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
     }
 
@@ -43,9 +43,9 @@ public class HomeController {
 
         // ROLE_LOCATAIRE - User dashboard
         model.addAttribute("username", user.getPrenom() + " " + user.getNom());
-        model.addAttribute("shops", boutiqueRepository.findAll());
+        model.addAttribute("shops", emplacementRepository.findAll());
         model.addAttribute("pendingRequestsCount", 0);
 
-        return "boutique";
+        return "emplacements";
     }
 }

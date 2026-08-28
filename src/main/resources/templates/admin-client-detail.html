@@ -19,7 +19,7 @@
         <!-- Navigation -->
         <nav class="space-y-1">
             <a th:href="@{/admin/stores}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
-                Gestion des boutiques
+                Gestion des emplacements
             </a>
             <a th:href="@{/admin/contracts}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
                 Gestion des contrats
@@ -62,7 +62,7 @@
                     <table class="w-full text-left border-collapse">
                         <thead>
                         <tr class="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                            <th class="py-3 px-4">Boutique</th>
+                            <th class="py-3 px-4">Emplacement</th>
                             <th class="py-3 px-4">Date de début</th>
                             <th class="py-3 px-4">Date de fin</th>
                             <th class="py-3 px-4">Statut</th>
@@ -70,7 +70,7 @@
                         </thead>
                         <tbody class="divide-y divide-slate-100 text-xs">
                         <tr th:each="contrat : ${contrats}" class="hover:bg-slate-50/80 transition-colors">
-                            <td class="py-3 px-4 font-bold text-slate-900" th:text="${contrat.boutique.name}">Boutique</td>
+                            <td class="py-3 px-4 font-bold text-slate-900" th:text="${contrat.emplacement.name}">Emplacement</td>
                             <td class="py-3 px-4 text-slate-600" th:text="${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
                             <td class="py-3 px-4 text-slate-600" th:text="${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
                             <td class="py-3 px-4">

@@ -19,7 +19,7 @@
         <!-- Navigation -->
         <nav class="space-y-1">
             <a th:href="@{/admin/stores}" class="flex items-center px-4 py-3 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-100 transition-colors">
-                Gestion des boutiques
+                Gestion des emplacements
             </a>
             <a th:href="@{/admin/contracts}" class="flex items-center px-4 py-3 text-sm font-bold rounded-xl bg-slate-900 text-white">
                 Gestion des contrats
@@ -89,7 +89,7 @@
         <ul class="space-y-2">
             <li th:each="contract : ${expiringContracts}" class="text-xs text-amber-800 flex justify-between items-center bg-white/60 rounded-xl px-4 py-2">
                 <span>
-                    <span class="font-bold" th:text="${contract.boutique.name}">Boutique</span>
+                    <span class="font-bold" th:text="${contract.emplacement.name}">Emplacement</span>
                     — <span th:text="${contract.locataire.prenom + ' ' + contract.locataire.nom}">Locataire</span>
                 </span>
                 <span class="font-semibold">Expire le <span th:text="${#temporals.format(contract.dateFin, 'dd-MM-yyyy')}">01-01-2026</span></span>
@@ -102,7 +102,7 @@
         <table class="w-full text-left border-collapse">
             <thead>
             <tr class="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                <th class="py-4 px-6">Boutique</th>
+                <th class="py-4 px-6">Emplacement</th>
                 <th class="py-4 px-6">Locataire</th>
                 <th class="py-4 px-6">Date de début</th>
                 <th class="py-4 px-6">Date de fin</th>
@@ -112,7 +112,7 @@
             </thead>
             <tbody class="divide-y divide-slate-100 text-xs">
             <tr th:each="contract : ${contracts}" class="hover:bg-slate-50/80 transition-colors">
-                <td class="py-4 px-6 font-bold text-slate-900" th:text="${contract.boutique.name}">Store Name</td>
+                <td class="py-4 px-6 font-bold text-slate-900" th:text="${contract.emplacement.name}">Emplacement Name</td>
                 <td class="py-4 px-6 text-slate-600" th:text="${contract.locataire.prenom + ' ' + contract.locataire.nom}">Tenant Name</td>
                 <td class="py-4 px-6 text-slate-600" th:text="${#temporals.format(contract.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
                 <td class="py-4 px-6 text-slate-600" th:text="${#temporals.format(contract.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>

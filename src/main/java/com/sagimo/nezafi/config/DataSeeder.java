@@ -1,10 +1,10 @@
 package com.sagimo.nezafi.config;
 
-import com.sagimo.nezafi.boutique.Boutique;
-import com.sagimo.nezafi.boutique.BoutiqueRepository;
-import com.sagimo.nezafi.boutique.CategorieBoutique;
-import com.sagimo.nezafi.boutique.Palier;
-import com.sagimo.nezafi.boutique.StatutBoutique;
+import com.sagimo.nezafi.emplacement.CategorieEmplacement;
+import com.sagimo.nezafi.emplacement.Emplacement;
+import com.sagimo.nezafi.emplacement.EmplacementRepository;
+import com.sagimo.nezafi.emplacement.Palier;
+import com.sagimo.nezafi.emplacement.StatutEmplacement;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
@@ -18,12 +18,12 @@ import java.math.BigDecimal;
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
-    private final BoutiqueRepository boutiqueRepository;
+    private final EmplacementRepository emplacementRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public DataSeeder(UserRepository userRepository, BoutiqueRepository boutiqueRepository, PasswordEncoder passwordEncoder) {
+    public DataSeeder(UserRepository userRepository, EmplacementRepository emplacementRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.boutiqueRepository = boutiqueRepository;
+        this.emplacementRepository = emplacementRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -40,16 +40,16 @@ public class DataSeeder implements CommandLineRunner {
             userRepository.save(admin);
         }
 
-        if (boutiqueRepository.count() == 0) {
-            Boutique boutique = new Boutique();
-            boutique.setName("Boutique Demo");
-            boutique.setImageUrl("https://images.unsplash.com/photo-1521572267360-ee0c2909d518");
-            boutique.setStatut(StatutBoutique.DISPONIBLE);
-            boutique.setPalier(Palier.PALIER_1);
-            boutique.setSuperficie(new BigDecimal("25.00"));
-            boutique.setPrix(new BigDecimal("150000.00"));
-            boutique.setCategorie(CategorieBoutique.BOUTIQUE);
-            boutiqueRepository.save(boutique);
+        if (emplacementRepository.count() == 0) {
+            Emplacement emplacement = new Emplacement();
+            emplacement.setName("Emplacement Demo");
+            emplacement.setImageUrl("https://images.unsplash.com/photo-1521572267360-ee0c2909d518");
+            emplacement.setStatut(StatutEmplacement.DISPONIBLE);
+            emplacement.setPalier(Palier.PALIER_1);
+            emplacement.setSuperficie(new BigDecimal("25.00"));
+            emplacement.setPrix(new BigDecimal("150000.00"));
+            emplacement.setCategorie(CategorieEmplacement.BOUTIQUE);
+            emplacementRepository.save(emplacement);
         }
     }
 }

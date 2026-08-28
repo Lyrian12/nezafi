@@ -1,7 +1,7 @@
 package com.sagimo.nezafi.contrat;
 
-import com.sagimo.nezafi.boutique.Boutique;
-import com.sagimo.nezafi.boutique.BoutiqueRepository;
+import com.sagimo.nezafi.emplacement.Emplacement;
+import com.sagimo.nezafi.emplacement.EmplacementRepository;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -15,14 +15,14 @@ import java.util.List;
 public class ContratController {
 
     private final ContratRepository contratRepository;
-    private final BoutiqueRepository boutiqueRepository;
+    private final EmplacementRepository emplacementRepository;
     private final UserRepository userRepository;
 
     public ContratController(ContratRepository contratRepository,
-                            BoutiqueRepository boutiqueRepository,
+                            EmplacementRepository emplacementRepository,
                             UserRepository userRepository) {
         this.contratRepository = contratRepository;
-        this.boutiqueRepository = boutiqueRepository;
+        this.emplacementRepository = emplacementRepository;
         this.userRepository = userRepository;
     }
 
@@ -38,9 +38,9 @@ public class ContratController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/boutique/{boutiqueId}")
-    public List<Contrat> getContratsByBoutique(@PathVariable Long boutiqueId) {
-        return contratRepository.findByBoutiqueId(boutiqueId);
+    @GetMapping("/emplacement/{emplacementId}")
+    public List<Contrat> getContratsByEmplacement(@PathVariable Long emplacementId) {
+        return contratRepository.findByEmplacementId(emplacementId);
     }
 
     @GetMapping("/locataire/{locataireId}")
@@ -50,14 +50,14 @@ public class ContratController {
 
     @PostMapping
     public ResponseEntity<Contrat> createContrat(@RequestBody Contrat contrat) {
-        Boutique boutique = boutiqueRepository.findById(contrat.getBoutique().getId()).orElse(null);
+        Emplacement emplacement = emplacementRepository.findById(contrat.getEmplacement().getId()).orElse(null);
         User locataire = userRepository.findById(contrat.getLocataire().getId()).orElse(null);
 
-        if (boutique == null || locataire == null) {
+        if (emplacement == null || locataire == null) {
             return ResponseEntity.badRequest().build();
         }
 
-        contrat.setBoutique(boutique);
+        contrat.setEmplacement(emplacement);
         contrat.setLocataire(locataire);
         Contrat saved = contratRepository.save(contrat);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
@@ -67,12 +67,12 @@ public class ContratController {
     public ResponseEntity<Contrat> updateContrat(@PathVariable Long id, @RequestBody Contrat contrat) {
         return contratRepository.findById(id)
                 .map(existing -> {
-                    if (contrat.getBoutique() != null && contrat.getBoutique().getId() != null) {
-                        Boutique boutique = boutiqueRepository.findById(contrat.getBoutique().getId()).orElse(null);
-                        if (boutique == null) {
+                    if (contrat.getEmplacement() != null && contrat.getEmplacement().getId() != null) {
+                        Emplacement emplacement = emplacementRepository.findById(contrat.getEmplacement().getId()).orElse(null);
+                        if (emplacement == null) {
                             return ResponseEntity.badRequest().<Contrat>build();
                         }
-                        existing.setBoutique(boutique);
+                        existing.setEmplacement(emplacement);
                     }
 
                     if (contrat.getLocataire() != null && contrat.getLocataire().getId() != null) {
