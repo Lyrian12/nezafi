@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Gestion du personnel</title>
+    <th:block th:replace="~{fragments/theme :: head}"></th:block>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
+
+<div th:replace="~{fragments/admin-nav :: logoutDock}"></div>
+
+<!-- CONTENU PRINCIPAL -->
+<main class="max-w-5xl mx-auto p-6 md:p-10 my-6 md:my-10 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-panel-in">
+    <!-- Top bar -->
+    <div class="flex justify-between items-center mb-8 gap-3 flex-wrap">
+        <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">Gestion du personnel</span>
+        <div class="flex items-center gap-3">
+            <div th:replace="~{fragments/admin-nav :: panelClose}"></div>
+            <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+            <div th:replace="~{fragments/theme :: toggleButton}"></div>
+        </div>
+    </div>
+
+    <!-- En-tête de section -->
+    <div class="flex justify-between items-end mb-8 gap-3 flex-wrap">
+        <div>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mb-1">Gestion du personnel</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Comptes Secrétariat et Comptable — réservé aux administrateurs.</p>
+        </div>
+        <a th:href="@{/admin/staff/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
+            + Ajouter un compte
+        </a>
+    </div>
+
+    <div th:if="${error}" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6" th:text="${error}">Erreur</div>
+
+    <!-- Tableau du personnel -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden mb-6">
+        <table class="w-full text-left border-collapse">
+            <thead>
+            <tr class="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/50">
+                <th class="py-4 px-6">Nom</th>
+                <th class="py-4 px-6">Prénom</th>
+                <th class="py-4 px-6">Téléphone</th>
+                <th class="py-4 px-6">Email</th>
+                <th class="py-4 px-6">Rôle</th>
+                <th class="py-4 px-6 text-right">Actions</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            <tr th:each="membre : ${personnel}" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
+                <td class="py-4 px-6 font-bold text-slate-900 dark:text-slate-100" th:text="${membre.nom}">Nom</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${membre.prenom}">Prénom</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${membre.telephone}">Téléphone</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${membre.email} ?: '—'">Email</td>
+                <td class="py-4 px-6">
+                    <span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium px-2.5 py-1 rounded-md text-[11px]"
+                          th:text="${membre.role.name() == 'ROLE_SECRETARIAT'} ? 'Secrétariat' : 'Comptable'">Rôle</span>
+                </td>
+                <td class="py-4 px-6 text-right">
+                    <a th:href="@{/admin/staff/edit/{id}(id=${membre.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Modifier</a>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(personnel)}">
+                <td colspan="6" class="py-8 px-6 text-center text-slate-400 dark:text-slate-500">Aucun compte du personnel pour le moment.</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+            <span class="text-xs text-slate-400 dark:text-slate-500" th:text="${personnel.size()} + ' compte(s)'">0 compte(s)</span>
+        </div>
+    </div>
+
+</main>
+
+</body>
+</html>
