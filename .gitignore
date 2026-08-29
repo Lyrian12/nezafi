@@ -32,3 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 cookies.txt
+
+### Claude Code worktrees (jamais suivis : ce sont des checkouts, pas du contenu du dépôt) ###
+.claude/worktrees/
