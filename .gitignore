@@ -38,3 +38,6 @@ cookies.txt
 
 ### Claude Code worktrees (jamais suivis : ce sont des checkouts, pas du contenu du dépôt) ###
 .claude/worktrees/
+
+### Fichiers uploadés (photos d'emplacements, factures de contrat) — stockage local, jamais suivi ###
+/uploads/

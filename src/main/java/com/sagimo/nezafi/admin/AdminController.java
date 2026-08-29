@@ -16,6 +16,7 @@ import com.sagimo.nezafi.echeance.EcheanceRepository;
 import com.sagimo.nezafi.echeance.EcheanceStatusService;
 import com.sagimo.nezafi.echeance.StatutEcheance;
 import com.sagimo.nezafi.echeance.TypeEcheance;
+import com.sagimo.nezafi.storage.FileStorageService;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
@@ -29,8 +30,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -57,12 +60,13 @@ public class AdminController {
     private final EcheanceStatusService echeanceStatusService;
     private final AuditService auditService;
     private final AdminAlertService adminAlertService;
+    private final FileStorageService fileStorageService;
 
     public AdminController(EmplacementRepository emplacementRepository, ContratRepository contratRepository,
                             UserRepository userRepository, PasswordEncoder passwordEncoder,
                             ContratStatusService contratStatusService, EcheanceRepository echeanceRepository,
                             EcheanceStatusService echeanceStatusService, AuditService auditService,
-                            AdminAlertService adminAlertService) {
+                            AdminAlertService adminAlertService, FileStorageService fileStorageService) {
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
@@ -72,6 +76,7 @@ public class AdminController {
         this.echeanceStatusService = echeanceStatusService;
         this.auditService = auditService;
         this.adminAlertService = adminAlertService;
+        this.fileStorageService = fileStorageService;
     }
 
     /** Résout l'admin actuellement connecté, pour attribuer les entrées du journal d'audit. */
@@ -182,16 +187,16 @@ public class AdminController {
     @PostMapping("/stores/add")
     public String addStore(
             @RequestParam String name,
-            @RequestParam String imageUrl,
+            @RequestParam MultipartFile image,
             @RequestParam(defaultValue = "DISPONIBLE") String statut,
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
             @RequestParam BigDecimal prix,
-            @RequestParam String categorie) {
+            @RequestParam String categorie) throws IOException {
 
         Emplacement emplacement = new Emplacement();
         emplacement.setName(name);
-        emplacement.setImageUrl(imageUrl);
+        emplacement.setImageUrl("/files/" + fileStorageService.enregistrer(image, "emplacements"));
         emplacement.setStatut(StatutEmplacement.valueOf(statut));
         emplacement.setPalier(Palier.valueOf(palier));
         emplacement.setSuperficie(superficie);
@@ -215,13 +220,13 @@ public class AdminController {
     public String editStore(
             @PathVariable Long id,
             @RequestParam String name,
-            @RequestParam String imageUrl,
+            @RequestParam(required = false) MultipartFile image,
             @RequestParam String statut,
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
             @RequestParam BigDecimal prix,
             @RequestParam String categorie,
-            Authentication authentication) {
+            Authentication authentication) throws IOException {
 
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -229,7 +234,11 @@ public class AdminController {
         BigDecimal ancienPrix = emplacement.getPrix();
 
         emplacement.setName(name);
-        emplacement.setImageUrl(imageUrl);
+        // Le champ photo est facultatif à l'édition : on ne remplace le fichier stocké que si
+        // l'admin en a choisi un nouveau, sinon la photo actuelle reste inchangée.
+        if (image != null && !image.isEmpty()) {
+            emplacement.setImageUrl("/files/" + fileStorageService.enregistrer(image, "emplacements"));
+        }
         emplacement.setStatut(StatutEmplacement.valueOf(statut));
         emplacement.setPalier(Palier.valueOf(palier));
         emplacement.setSuperficie(superficie);
