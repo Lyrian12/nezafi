@@ -172,14 +172,14 @@
                         le <span th:text="${#temporals.format(paiement.datePaiement, 'dd-MM-yyyy')}">01-01-2026</span>
                         — enregistré par <span th:text="${paiement.adminEnregistrant.prenom + ' ' + paiement.adminEnregistrant.nom}">Admin</span>
                     </span>
-                    <span th:if="${paiement.cheminRecu}">
-                        <a th:href="${paiement.cheminRecu}" target="_blank" class="text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100">Reçu</a>
+                    <span th:if="${recuParPaiement.get(paiement.id)}">
+                        <a th:href="@{/admin/paiements/{id}/recu(id=${paiement.id})}" target="_blank" class="text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100">Reçu</a>
                     </span>
                 </div>
             </div>
 
             <!-- Formulaire d'enregistrement de paiement -->
-            <form th:if="${peutModifier}" th:action="@{/admin/echeances/{id}/paiements(id=${echeance.id})}" method="post" class="flex flex-wrap gap-2 items-end pt-2 border-t border-slate-100 dark:border-slate-800">
+            <form th:if="${peutModifier}" th:action="@{/admin/echeances/{id}/paiements(id=${echeance.id})}" method="post" enctype="multipart/form-data" class="flex flex-wrap gap-2 items-end pt-2 border-t border-slate-100 dark:border-slate-800">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                 <div>
                     <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Montant payé *</label>
@@ -191,10 +191,10 @@
                     <input type="date" name="datePaiement" required
                            class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400">
                 </div>
-                <div class="flex-grow">
-                    <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Reçu (URL/chemin)</label>
-                    <input type="text" name="cheminRecu" placeholder="Facultatif"
-                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400">
+                <div class="flex-grow min-w-[200px]">
+                    <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Reçu — scan (PDF ou image)</label>
+                    <input type="file" name="recu" accept="application/pdf,image/*"
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-100 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-white dark:file:bg-slate-700 focus:outline-none focus:border-slate-400">
                 </div>
                 <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-2 px-4 rounded-xl transition-colors text-xs">
                     Enregistrer

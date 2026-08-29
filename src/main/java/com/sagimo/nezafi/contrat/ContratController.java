@@ -1,5 +1,7 @@
 package com.sagimo.nezafi.contrat;
 
+import com.sagimo.nezafi.audit.AuditService;
+import com.sagimo.nezafi.audit.TypeActionAudit;
 import com.sagimo.nezafi.emplacement.Emplacement;
 import com.sagimo.nezafi.emplacement.EmplacementRepository;
 import com.sagimo.nezafi.user.User;
@@ -10,7 +12,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -21,6 +25,11 @@ import java.util.Set;
  * Règles : ADMIN et SECRETARIAT ont l'accès complet (cohérent avec les routes Thymeleaf
  * équivalentes d'AdminController). COMPTABLE est strictement lecture seule. LOCATAIRE ne peut
  * lire/créer/modifier/supprimer que ses propres contrats (jamais ceux d'un autre locataire).
+ *
+ * Journalisation : mêmes entrées d'audit que côté Thymeleaf (AdminController) — création,
+ * modification (si l'instantané suivi change réellement) et suppression d'un contrat. Avant
+ * cette correction, ce contrôleur n'appelait jamais AuditService : toute action passée par
+ * l'API échappait totalement à la traçabilité.
  */
 @RestController
 @RequestMapping("/api/contrats")
@@ -32,13 +41,30 @@ public class ContratController {
     private final ContratRepository contratRepository;
     private final EmplacementRepository emplacementRepository;
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
     public ContratController(ContratRepository contratRepository,
                             EmplacementRepository emplacementRepository,
-                            UserRepository userRepository) {
+                            UserRepository userRepository,
+                            AuditService auditService) {
         this.contratRepository = contratRepository;
         this.emplacementRepository = emplacementRepository;
         this.userRepository = userRepository;
+        this.auditService = auditService;
+    }
+
+    /** Instantané des seuls champs de Contrat suivis par le journal d'audit — mêmes champs
+     *  que {@code AdminController.contratSnapshot}, pour rester cohérent avec le journal. */
+    private Map<String, Object> contratSnapshot(Contrat contrat) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("montantLoyer", contrat.getMontantLoyer());
+        snapshot.put("statut", contrat.getStatut());
+        snapshot.put("dateDebut", contrat.getDateDebut());
+        snapshot.put("dateFin", contrat.getDateFin());
+        snapshot.put("montantCaution", contrat.getMontantCaution());
+        snapshot.put("motifResiliation", contrat.getMotifResiliation());
+        snapshot.put("datePreavis", contrat.getDatePreavis());
+        return snapshot;
     }
 
     private User utilisateurCourant(Authentication authentication) {
@@ -139,6 +165,10 @@ public class ContratController {
         contrat.setEmplacement(emplacement);
         contrat.setLocataire(locataire);
         Contrat saved = contratRepository.save(contrat);
+        if (demandeur != null) {
+            auditService.enregistrer(demandeur, TypeActionAudit.CREATION, "Contrat", saved.getId(),
+                    null, contratSnapshot(saved));
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
@@ -149,6 +179,8 @@ public class ContratController {
                     if (!peutModifier(authentication, existing)) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).<Contrat>build();
                     }
+
+                    Map<String, Object> ancienSnapshot = contratSnapshot(existing);
 
                     if (contrat.getEmplacement() != null && contrat.getEmplacement().getId() != null) {
                         Emplacement emplacement = emplacementRepository.findById(contrat.getEmplacement().getId()).orElse(null);
@@ -179,7 +211,16 @@ public class ContratController {
                         existing.setStatut(contrat.getStatut());
                     }
 
-                    return ResponseEntity.ok(contratRepository.save(existing));
+                    Contrat saved = contratRepository.save(existing);
+
+                    Map<String, Object> nouveauSnapshot = contratSnapshot(saved);
+                    User demandeur = utilisateurCourant(authentication);
+                    if (demandeur != null && !ancienSnapshot.equals(nouveauSnapshot)) {
+                        auditService.enregistrer(demandeur, TypeActionAudit.MODIFICATION, "Contrat",
+                                saved.getId(), ancienSnapshot, nouveauSnapshot);
+                    }
+
+                    return ResponseEntity.ok(saved);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -191,7 +232,13 @@ public class ContratController {
                     if (!peutModifier(authentication, existing)) {
                         return ResponseEntity.status(HttpStatus.FORBIDDEN).<Void>build();
                     }
+                    Map<String, Object> ancienSnapshot = contratSnapshot(existing);
                     contratRepository.deleteById(id);
+                    User demandeur = utilisateurCourant(authentication);
+                    if (demandeur != null) {
+                        auditService.enregistrer(demandeur, TypeActionAudit.SUPPRESSION, "Contrat", id,
+                                ancienSnapshot, null);
+                    }
                     return ResponseEntity.noContent().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());

@@ -17,11 +17,9 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 /**
- * Stockage local des fichiers uploadés (photos d'emplacements, factures de contrat) : un
- * dossier sur disque (cf. {@code app.upload-dir}), pas de service de stockage externe pour
- * cette première version — cf. {@link com.sagimo.nezafi.paiement.Paiement#getCheminRecu()} qui
- * suit la même logique de simple champ texte pour les scans de reçus, non encore migrés vers
- * un vrai upload.
+ * Stockage local des fichiers uploadés (photos d'emplacements, factures de contrat, reçus de
+ * paiement) : un dossier sur disque (cf. {@code app.upload-dir}), pas de service de stockage
+ * externe pour cette première version.
  *
  * Chaque fichier est stocké sous {@code <sous-dossier>/<uuid>__<nom-original>} : le préfixe
  * UUID évite les collisions de noms, le nom original reste lisible et récupérable pour

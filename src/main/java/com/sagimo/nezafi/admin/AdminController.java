@@ -217,24 +217,32 @@ public class AdminController {
         return "admin-store-detail";
     }
 
+    // Plusieurs fichiers en un seul envoi (attribut "multiple" côté formulaire) : chaque appel
+    // accumule quand même sur les photos déjà attachées (cf. DocumentJointService.attacher),
+    // rien n'est remplacé.
     @PostMapping("/stores/{id}/photos")
     @PreAuthorize(EDITION_STAFF)
-    public String ajouterPhoto(@PathVariable Long id, @RequestParam MultipartFile photo,
+    public String ajouterPhoto(@PathVariable Long id, @RequestParam("photos") List<MultipartFile> photos,
                                 RedirectAttributes redirectAttributes) throws IOException {
         emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
 
-        if (photo.isEmpty()) {
+        List<MultipartFile> fichiers = photos.stream().filter(p -> !p.isEmpty()).toList();
+        if (fichiers.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Aucune photo sélectionnée.");
             return "redirect:/admin/stores/" + id;
         }
-        String type = photo.getContentType();
-        if (type == null || !type.startsWith("image/")) {
-            redirectAttributes.addFlashAttribute("error", "Le fichier doit être une image.");
-            return "redirect:/admin/stores/" + id;
+        for (MultipartFile photo : fichiers) {
+            String type = photo.getContentType();
+            if (type == null || !type.startsWith("image/")) {
+                redirectAttributes.addFlashAttribute("error", "Chaque fichier doit être une image.");
+                return "redirect:/admin/stores/" + id;
+            }
         }
 
-        documentJointService.attacher("Emplacement", id, photo, "emplacements");
+        for (MultipartFile photo : fichiers) {
+            documentJointService.attacher("Emplacement", id, photo, "emplacements");
+        }
         return "redirect:/admin/stores/" + id;
     }
 
@@ -254,7 +262,13 @@ public class AdminController {
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
             @RequestParam BigDecimal prix,
-            @RequestParam String categorie) throws IOException {
+            @RequestParam String categorie,
+            RedirectAttributes redirectAttributes) throws IOException {
+
+        if (superficie.signum() <= 0 || prix.signum() <= 0) {
+            redirectAttributes.addFlashAttribute("error", "La superficie et le prix doivent être strictement positifs.");
+            return "redirect:/admin/stores/add";
+        }
 
         Emplacement emplacement = new Emplacement();
         emplacement.setName(name);
@@ -295,7 +309,13 @@ public class AdminController {
             @RequestParam BigDecimal superficie,
             @RequestParam BigDecimal prix,
             @RequestParam String categorie,
-            Authentication authentication) {
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+
+        if (superficie.signum() <= 0 || prix.signum() <= 0) {
+            redirectAttributes.addFlashAttribute("error", "La superficie et le prix doivent être strictement positifs.");
+            return "redirect:/admin/stores/edit/" + id;
+        }
 
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -324,9 +344,24 @@ public class AdminController {
     // POST (pas GET) : une suppression est une action destructrice, elle doit passer par le
     // token CSRF déjà en place sur les formulaires — un lien/image GET en contournerait la
     // protection CSRF (Spring Security ne protège par défaut que POST/PUT/DELETE/PATCH).
+    //
+    // Un emplacement supprimé entraîne en cascade (JPA cascade=ALL) la suppression de tous ses
+    // contrats, et transitivement de leurs échéances et paiements — potentiellement un
+    // historique financier réel (paiements déjà encaissés). Sans confirmation=true, ce premier
+    // POST ne supprime rien s'il existe un tel historique : il redirige vers la fiche avec un
+    // avertissement explicite, qui propose un second bouton "confirmer=true" pour aller au bout.
     @PostMapping("/stores/delete/{id}")
     @PreAuthorize(ADMIN_SEUL)
-    public String deleteStore(@PathVariable Long id) {
+    public String deleteStore(@PathVariable Long id, @RequestParam(required = false, defaultValue = "false") boolean confirmer,
+                               RedirectAttributes redirectAttributes) {
+        List<Contrat> contratsLies = contratRepository.findByEmplacementId(id);
+        if (!contratsLies.isEmpty() && !confirmer) {
+            redirectAttributes.addFlashAttribute("warning",
+                    "Cet emplacement a " + contratsLies.size() + " contrat(s) rattaché(s), avec leurs échéances et paiements : "
+                            + "supprimer l'emplacement effacera aussi tout cet historique financier. Confirmer la suppression ?");
+            redirectAttributes.addFlashAttribute("demanderConfirmationSuppression", true);
+            return "redirect:/admin/stores/" + id;
+        }
         emplacementRepository.deleteById(id);
         return "redirect:/admin/stores";
     }
@@ -409,6 +444,11 @@ public class AdminController {
         LocalDate dateFinParsed = LocalDate.parse(dateFin);
         if (dateDebutParsed.isAfter(dateFinParsed)) {
             return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.",
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+        }
+        if (montantLoyer.signum() <= 0 || montantCaution.signum() <= 0) {
+            return rejectContractForm(model, "Le loyer et la caution doivent être des montants strictement positifs.",
                     contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
                             statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
         }
@@ -554,6 +594,9 @@ public class AdminController {
         if (dateDebutParsed.isAfter(dateFinParsed)) {
             return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.", contrat, false);
         }
+        if (montantLoyer.signum() <= 0 || montantCaution.signum() <= 0) {
+            return rejectContractForm(model, "Le loyer et la caution doivent être des montants strictement positifs.", contrat, false);
+        }
 
         StatutContrat statutEnum = StatutContrat.valueOf(statut);
         if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacementId, contrat.getId())) {
@@ -631,10 +674,15 @@ public class AdminController {
                 return "La date d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                         + ") est en dehors de la période du contrat.";
             }
+            BigDecimal montantEcheance = new BigDecimal(montantStr.trim());
+            if (montantEcheance.signum() <= 0) {
+                return "Le montant d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        + ") doit être strictement positif.";
+            }
             Echeance echeance = new Echeance();
             echeance.setContrat(contrat);
             echeance.setDateEcheance(dateEcheance);
-            echeance.setMontantDu(new BigDecimal(montantStr.trim()));
+            echeance.setMontantDu(montantEcheance);
             echeance.setStatut(StatutEcheance.EN_COURS);
             String typeStr = (types != null && i < types.size()) ? types.get(i) : null;
             echeance.setType((typeStr == null || typeStr.isBlank()) ? TypeEcheance.LOYER : TypeEcheance.valueOf(typeStr));

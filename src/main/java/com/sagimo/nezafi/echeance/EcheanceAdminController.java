@@ -95,9 +95,13 @@ public class EcheanceAdminController {
 
         Map<Long, List<Paiement>> paiementsParEcheance = new HashMap<>();
         Map<Long, BigDecimal> totalPayeParEcheance = new HashMap<>();
+        Map<Long, Boolean> recuParPaiement = new HashMap<>();
         for (Echeance echeance : echeances) {
             List<Paiement> paiements = paiementRepository.findByEcheanceId(echeance.getId());
             paiementsParEcheance.put(echeance.getId(), paiements);
+            for (Paiement paiement : paiements) {
+                recuParPaiement.put(paiement.getId(), !documentJointService.lister("Paiement", paiement.getId()).isEmpty());
+            }
             totalPayeParEcheance.put(echeance.getId(), echeanceStatusService.totalPaye(echeance.getId()));
         }
 
@@ -105,6 +109,7 @@ public class EcheanceAdminController {
         model.addAttribute("echeances", echeances);
         model.addAttribute("paiementsParEcheance", paiementsParEcheance);
         model.addAttribute("totalPayeParEcheance", totalPayeParEcheance);
+        model.addAttribute("recuParPaiement", recuParPaiement);
         // Alerte non bloquante, contextuelle à cette fiche : écart significatif entre le
         // total des échéances LOYER et le montantLoyer déclaré sur le contrat.
         model.addAttribute("ecartLoyerSignificatif", adminAlertService.ecartLoyerSignificatif(contrat));
@@ -167,9 +172,9 @@ public class EcheanceAdminController {
             @PathVariable Long id,
             @RequestParam BigDecimal montantPaye,
             @RequestParam String datePaiement,
-            @RequestParam(required = false) String cheminRecu,
+            @RequestParam(required = false) MultipartFile recu,
             Authentication authentication,
-            RedirectAttributes redirectAttributes) {
+            RedirectAttributes redirectAttributes) throws IOException {
 
         Echeance echeance = echeanceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Echeance not found"));
@@ -179,13 +184,26 @@ public class EcheanceAdminController {
                 .or(() -> userRepository.findByTelephone(identifier))
                 .orElseThrow(() -> new RuntimeException("Admin not found"));
 
+        boolean recuFourni = recu != null && !recu.isEmpty();
+        if (recuFourni) {
+            String type = recu.getContentType();
+            boolean typeAccepte = type != null && (type.equals(MediaType.APPLICATION_PDF_VALUE) || type.startsWith("image/"));
+            if (!typeAccepte) {
+                redirectAttributes.addFlashAttribute("error", "Le reçu doit être un PDF ou une image.");
+                return "redirect:/admin/contracts/" + echeance.getContrat().getId();
+            }
+        }
+
         Paiement paiement = new Paiement();
         paiement.setEcheance(echeance);
         paiement.setMontantPaye(montantPaye);
         paiement.setDatePaiement(LocalDate.parse(datePaiement));
-        paiement.setCheminRecu((cheminRecu == null || cheminRecu.isBlank()) ? null : cheminRecu.trim());
         paiement.setAdminEnregistrant(admin);
         paiementRepository.save(paiement);
+
+        if (recuFourni) {
+            documentJointService.attacher("Paiement", paiement.getId(), recu, "paiements");
+        }
 
         echeanceStatusService.recalculerStatut(echeance);
 
@@ -203,6 +221,25 @@ public class EcheanceAdminController {
         }
 
         return "redirect:/admin/contracts/" + echeance.getContrat().getId();
+    }
+
+    @GetMapping("/paiements/{id}/recu")
+    @PreAuthorize(LECTURE_STAFF)
+    public void telechargerRecuPaiement(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        Optional<DocumentJoint> recu = documentJointService.premier("Paiement", id);
+        if (recu.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        Resource ressource = documentJointService.charger(recu.get());
+        String nomAffiche = documentJointService.nomOriginal(recu.get());
+        MediaType type = MediaTypeFactory.getMediaType(ressource).orElse(MediaType.APPLICATION_OCTET_STREAM);
+
+        response.setContentType(type.toString());
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''"
+                + URLEncoder.encode(nomAffiche, StandardCharsets.UTF_8).replace("+", "%20"));
+        response.getOutputStream().write(ressource.getContentAsByteArray());
     }
 
     @GetMapping("/echeances")

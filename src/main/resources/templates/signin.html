@@ -29,6 +29,7 @@
 
     <!-- Formulaire de connexion Spring Security -->
     <form th:action="@{/signin}" method="post" class="space-y-4 text-left">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 
         <!-- Message d'erreur éventuel -->
         <div th:if="${error}" class="p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl">

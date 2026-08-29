@@ -1,5 +1,7 @@
 package com.sagimo.nezafi.user;
 
+import com.sagimo.nezafi.contrat.Contrat;
+import com.sagimo.nezafi.contrat.ContratRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,10 +20,12 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ContratRepository contratRepository;
 
-    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserController(UserRepository userRepository, PasswordEncoder passwordEncoder, ContratRepository contratRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.contratRepository = contratRepository;
     }
 
     @GetMapping
@@ -81,10 +85,22 @@ public class UserController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    // Un locataire supprimé entraîne en cascade (JPA cascade=ALL, cf. User.contrats) la
+    // suppression de tous ses contrats, et transitivement de leurs échéances et paiements —
+    // potentiellement un historique financier réel. Sans ?confirmer=true, cette suppression est
+    // refusée (409) s'il existe un tel historique, plutôt que de l'effacer silencieusement.
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Object> deleteUser(@PathVariable Long id,
+                                              @RequestParam(required = false, defaultValue = "false") boolean confirmer) {
         if (!userRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
+        }
+        List<Contrat> contratsLies = contratRepository.findByLocataireId(id);
+        if (!contratsLies.isEmpty() && !confirmer) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    "Ce compte a " + contratsLies.size() + " contrat(s) rattaché(s), avec leurs échéances et paiements : "
+                            + "la suppression effacera aussi tout cet historique financier. "
+                            + "Relancer la requête avec ?confirmer=true pour confirmer.");
         }
         userRepository.deleteById(id);
         return ResponseEntity.noContent().build();

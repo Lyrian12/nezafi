@@ -34,10 +34,9 @@ public class Paiement {
     @Column(nullable = false)
     private LocalDate datePaiement;
 
-    // Chemin/URL du scan ou de la photo du reçu — encore un simple champ texte pour l'instant,
-    // pas migré vers com.sagimo.nezafi.storage.DocumentJoint (utilisé lui pour les photos
-    // d'emplacement et la facture de contrat).
-    private String cheminRecu;
+    // Le scan/la photo du reçu vit désormais dans com.sagimo.nezafi.storage.DocumentJoint
+    // (nomEntite="Paiement", entiteId=this.id) — même mécanisme générique que les photos
+    // d'emplacement et la facture de contrat, cf. DocumentJointService.
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "admin_enregistrant_id", nullable = false)

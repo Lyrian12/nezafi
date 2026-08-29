@@ -91,8 +91,9 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(@RequestParam(required = false) Long emplacementId, Model model,
-                             Authentication authentication) {
+    public String dashboard(@RequestParam(required = false) Long emplacementId,
+                             @RequestParam(required = false) StatutEcheance statutEcheance,
+                             Model model, Authentication authentication) {
         boolean estAdmin = authentication.getAuthorities().stream()
                 .anyMatch(autorite -> autorite.getAuthority().equals("ROLE_ADMIN"));
         model.addAttribute("estAdmin", estAdmin);
@@ -158,13 +159,15 @@ public class AdminDashboardController {
         model.addAttribute("apercuClients", apercuClients);
         model.addAttribute("totalClients", userRepository.findByRole(Role.ROLE_LOCATAIRE).size());
 
-        // Échéances : en retard d'abord, puis les plus proches — recalcul paresseux du statut,
-        // comme sur /admin/echeances et l'ancien widget de /admin/stores.
+        // Échéances : TOUTES par défaut (retard d'abord, puis en cours, puis payées — chacune
+        // triée par date), filtrables sur place via ?statutEcheance=... sans passer par la page
+        // séparée /admin/echeances (le lien "Voir tout" reste disponible pour la vue complète
+        // avec ses propres filtres, mais n'est plus le seul moyen de filtrer).
         List<Echeance> toutesEcheances = echeanceRepository.findAll();
         echeanceStatusService.rafraichirStatuts(toutesEcheances);
         List<Echeance> echeancesApercu = toutesEcheances.stream()
-                .filter(e -> e.getStatut() != StatutEcheance.PAYEE)
-                .sorted(Comparator.comparing((Echeance e) -> e.getStatut() != StatutEcheance.EN_RETARD)
+                .filter(e -> statutEcheance == null || e.getStatut() == statutEcheance)
+                .sorted(Comparator.comparing((Echeance e) -> prioriteStatutEcheance(e.getStatut()))
                         .thenComparing(Echeance::getDateEcheance))
                 .limit(8)
                 .toList();
@@ -174,6 +177,8 @@ public class AdminDashboardController {
         }
         model.addAttribute("echeancesApercu", echeancesApercu);
         model.addAttribute("totalPayeParEcheance", totalPayeParEcheance);
+        model.addAttribute("statutEcheanceFiltre", statutEcheance);
+        model.addAttribute("statutsEcheance", StatutEcheance.values());
 
         // Journal d'audit : dernières entrées — réservé à ADMIN (estAdmin), SECRETARIAT n'a
         // pas accès au journal d'audit ; le bloc correspondant est masqué côté template. Même
@@ -274,6 +279,17 @@ public class AdminDashboardController {
             points.add(new RevenuePoint(m, capitalize(label), total, x, y));
         }
         return points;
+    }
+
+    /** Ordre d'affichage du widget "Échéances" : en retard d'abord (le plus actionnable), puis
+     *  en cours, puis payées — pour que le filtre par défaut (aucun) reste utile malgré
+     *  l'inclusion des échéances payées. */
+    private int prioriteStatutEcheance(StatutEcheance statut) {
+        return switch (statut) {
+            case EN_RETARD -> 0;
+            case EN_COURS -> 1;
+            case PAYEE -> 2;
+        };
     }
 
     private String capitalize(String value) {
