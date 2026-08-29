@@ -43,6 +43,11 @@
                 Modifier le contrat
             </a>
             <a th:href="@{/admin/contracts/{id}/renew(id=${contrat.id})}" class="text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300 underline">Renouveler</a>
+            <a th:href="@{/admin/contracts/{id}/pdf(id=${contrat.id})}" target="_blank"
+               class="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300 underline">
+                <span class="w-3.5 h-3.5" th:insert="~{fragments/icons :: fileText}"></span>
+                Télécharger en PDF
+            </a>
         </div>
     </div>
 

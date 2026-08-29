@@ -29,9 +29,19 @@
             <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mb-1">Gestion des emplacements</h1>
             <p class="text-xs text-slate-500 dark:text-slate-400">Vue d'ensemble et gestion de tous les emplacements enregistrés.</p>
         </div>
-        <a th:href="@{/admin/stores/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
-            + Ajouter un emplacement
-        </a>
+        <div class="flex gap-3">
+            <a th:href="@{/admin/stores/export}" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm flex items-center gap-2">
+                <span class="w-3.5 h-3.5" th:insert="~{fragments/icons :: download}"></span>
+                Export CSV
+            </a>
+            <a th:href="@{/admin/stores/export/pdf}" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm flex items-center gap-2">
+                <span class="w-3.5 h-3.5" th:insert="~{fragments/icons :: fileText}"></span>
+                Export PDF
+            </a>
+            <a th:href="@{/admin/stores/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
+                + Ajouter un emplacement
+            </a>
+        </div>
     </div>
 
     <!-- Cartes statistiques -->
