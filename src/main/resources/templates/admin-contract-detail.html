@@ -27,6 +27,11 @@
             — <span th:text="${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')} + ' au ' + ${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')}">dates</span>
             — <span class="font-semibold" th:text="${contrat.statut}">STATUT</span>
         </p>
+        <p class="text-xs text-slate-500 mt-1" th:if="${contrat.nomEnseigne != null or contrat.activite != null}">
+            <span th:if="${contrat.nomEnseigne != null}">Enseigne : <span class="font-semibold" th:text="${contrat.nomEnseigne}">Enseigne</span></span>
+            <span th:if="${contrat.nomEnseigne != null and contrat.activite != null}"> — </span>
+            <span th:if="${contrat.activite != null}">Activité : <span class="font-semibold" th:text="${contrat.activite}">Activité</span></span>
+        </p>
         <p class="text-xs text-slate-400 mt-1" th:if="${contrat.contratPrecedent != null}">
             Renouvellement du <a th:href="@{/admin/contracts/{id}(id=${contrat.contratPrecedent.id})}" class="underline hover:text-slate-600">contrat #<span th:text="${contrat.contratPrecedent.id}">1</span></a>
         </p>
@@ -45,7 +50,7 @@
     <!-- Loyer / Caution -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
         <h2 class="text-lg font-bold text-slate-900 mb-4">Loyer &amp; caution</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-6 text-xs">
             <div>
                 <p class="text-slate-400 uppercase text-[10px] font-bold mb-1">Loyer</p>
                 <p class="font-semibold text-slate-900" th:text="${#numbers.formatDecimal(contrat.montantLoyer, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</p>
@@ -55,11 +60,6 @@
                 <p class="text-slate-400 uppercase text-[10px] font-bold mb-1">Caution</p>
                 <p class="font-semibold text-slate-900" th:text="${#numbers.formatDecimal(contrat.montantCaution, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</p>
                 <p class="text-slate-500" th:text="${contrat.dureeCautionMois} + ' mois couverts'">12 mois couverts</p>
-            </div>
-            <div>
-                <p class="text-slate-400 uppercase text-[10px] font-bold mb-1">Statut caution</p>
-                <p class="font-semibold text-slate-900" th:text="${contrat.statutCaution}">DETENUE</p>
-                <p class="text-slate-500" th:if="${contrat.motifRetenueCaution}" th:text="${contrat.motifRetenueCaution}">Motif</p>
             </div>
             <div>
                 <p class="text-slate-400 uppercase text-[10px] font-bold mb-1">Préavis</p>

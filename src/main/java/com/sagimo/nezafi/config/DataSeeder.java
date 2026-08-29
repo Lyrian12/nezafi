@@ -2,7 +2,6 @@ package com.sagimo.nezafi.config;
 
 import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
-import com.sagimo.nezafi.contrat.StatutCaution;
 import com.sagimo.nezafi.contrat.StatutContrat;
 import com.sagimo.nezafi.echeance.Echeance;
 import com.sagimo.nezafi.echeance.EcheanceRepository;
@@ -94,7 +93,7 @@ public class DataSeeder implements CommandLineRunner {
         // --- Contrat A : historique — ancien locataire de la boutique textile, résilié ---
         Contrat contratHistorique = creerContrat(boutiqueTextile, samuelMballa, StatutContrat.RESILIER,
                 LocalDate.of(2025, 1, 1), LocalDate.of(2025, 12, 31),
-                "1000000.00", 12, "1000000.00", 12, StatutCaution.RESTITUEE);
+                "1000000.00", 12, "1000000.00", 12);
         contratHistorique.setMotifResiliation("Fin de bail, départ du locataire à l'échéance normale du contrat.");
         contratRepository.save(contratHistorique);
         payer(creerEcheance(contratHistorique, TypeEcheance.LOYER, LocalDate.of(2025, 1, 10), "1000000.00"),
@@ -103,7 +102,10 @@ public class DataSeeder implements CommandLineRunner {
         // --- Contrat B : locataire actuel de la même boutique — montre l'historique sur 2 locataires ---
         Contrat contratKamdem = creerContrat(boutiqueTextile, paulKamdem, StatutContrat.VALIDER,
                 LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31),
-                "1200000.00", 12, "1200000.00", 12, StatutCaution.DETENUE);
+                "1200000.00", 12, "1200000.00", 12);
+        contratKamdem.setActivite("Vente de vêtements");
+        contratKamdem.setNomEnseigne("Les Tiktokeurs");
+        contratRepository.save(contratKamdem);
         payer(creerEcheance(contratKamdem, TypeEcheance.LOYER, LocalDate.of(2026, 1, 5), "400000.00"),
                 LocalDate.of(2026, 1, 5));
         creerEcheance(contratKamdem, TypeEcheance.LOYER, LocalDate.of(2026, 5, 5), "400000.00"); // volontairement en retard
@@ -114,7 +116,10 @@ public class DataSeeder implements CommandLineRunner {
         // --- Contrat C : caution étalée sur moins d'un an (6 mois), payée cash aussi ---
         Contrat contratNjoya = creerContrat(magasinElectronique, aminatouNjoya, StatutContrat.VALIDER,
                 LocalDate.of(2026, 3, 1), LocalDate.of(2027, 2, 28),
-                "2400000.00", 12, "1200000.00", 6, StatutCaution.DETENUE);
+                "2400000.00", 12, "1200000.00", 6);
+        contratNjoya.setActivite("Vente d'appareils électroniques");
+        contratNjoya.setNomEnseigne("ETS WANG");
+        contratRepository.save(contratNjoya);
         payer(creerEcheance(contratNjoya, TypeEcheance.LOYER, LocalDate.of(2026, 3, 5), "1200000.00"),
                 LocalDate.of(2026, 3, 5));
         creerEcheance(contratNjoya, TypeEcheance.LOYER, LocalDate.of(2026, 9, 5), "1200000.00"); // pas encore due
@@ -124,7 +129,7 @@ public class DataSeeder implements CommandLineRunner {
         // --- Contrat D : plusieurs échéances loyer en retard + une caution étalée pas encore due ---
         Contrat contratFotso = creerContrat(magasinTextileImport, jeanBaptisteFotso, StatutContrat.VALIDER,
                 LocalDate.of(2026, 2, 1), LocalDate.of(2027, 1, 31),
-                "3360000.00", 12, "2800000.00", 10, StatutCaution.DETENUE);
+                "3360000.00", 12, "2800000.00", 10);
         payer(creerEcheance(contratFotso, TypeEcheance.LOYER, LocalDate.of(2026, 2, 5), "840000.00"),
                 LocalDate.of(2026, 2, 5));
         creerEcheance(contratFotso, TypeEcheance.LOYER, LocalDate.of(2026, 5, 5), "840000.00"); // en retard
@@ -135,7 +140,7 @@ public class DataSeeder implements CommandLineRunner {
         // --- Contrat E : en attente de validation, l'emplacement reste donc disponible ---
         Contrat contratAteba = creerContrat(boutiqueChaussures, marieAteba, StatutContrat.EN_ATTENTE,
                 LocalDate.of(2026, 9, 1), LocalDate.of(2027, 8, 31),
-                "1440000.00", 12, "1440000.00", 12, StatutCaution.DETENUE);
+                "1440000.00", 12, "1440000.00", 12);
         creerEcheance(contratAteba, TypeEcheance.LOYER, LocalDate.of(2026, 9, 5), "1440000.00"); // pas encore due
     }
 
@@ -181,7 +186,7 @@ public class DataSeeder implements CommandLineRunner {
     private Contrat creerContrat(Emplacement emplacement, User locataire, StatutContrat statut,
                                   LocalDate dateDebut, LocalDate dateFin,
                                   String montantLoyer, int dureeLoyerMois,
-                                  String montantCaution, int dureeCautionMois, StatutCaution statutCaution) {
+                                  String montantCaution, int dureeCautionMois) {
         Contrat contrat = new Contrat();
         contrat.setEmplacement(emplacement);
         contrat.setLocataire(locataire);
@@ -192,7 +197,6 @@ public class DataSeeder implements CommandLineRunner {
         contrat.setDureeLoyerMois(dureeLoyerMois);
         contrat.setMontantCaution(new BigDecimal(montantCaution));
         contrat.setDureeCautionMois(dureeCautionMois);
-        contrat.setStatutCaution(statutCaution);
         return contratRepository.save(contrat);
     }
 

@@ -63,11 +63,16 @@ public class GlobalSearchController {
         contratRepository.findAll().stream()
                 .filter(c -> correspond(c, terme))
                 .limit(LIMITE_PAR_CATEGORIE)
-                .forEach(c -> resultats.add(resultat("Contrat",
-                        c.getEmplacement().getName() + " — " + c.getLocataire().getPrenom() + " " + c.getLocataire().getNom(),
-                        "/admin/contracts/" + c.getId())));
+                .forEach(c -> resultats.add(resultat("Contrat", libelleContrat(c), "/admin/contracts/" + c.getId())));
 
         return resultats;
+    }
+
+    private String libelleContrat(Contrat contrat) {
+        String base = contrat.getEmplacement().getName() + " — " + contrat.getLocataire().getPrenom()
+                + " " + contrat.getLocataire().getNom();
+        return (contrat.getNomEnseigne() != null && !contrat.getNomEnseigne().isBlank())
+                ? base + " (" + contrat.getNomEnseigne() + ")" : base;
     }
 
     private boolean correspond(Contrat contrat, String terme) {
@@ -75,7 +80,9 @@ public class GlobalSearchController {
         User locataire = contrat.getLocataire();
         return (emplacement != null && emplacement.getName().toLowerCase().contains(terme))
                 || (locataire != null && (locataire.getNom().toLowerCase().contains(terme)
-                        || locataire.getPrenom().toLowerCase().contains(terme)));
+                        || locataire.getPrenom().toLowerCase().contains(terme)))
+                || (contrat.getNomEnseigne() != null && contrat.getNomEnseigne().toLowerCase().contains(terme))
+                || (contrat.getActivite() != null && contrat.getActivite().toLowerCase().contains(terme));
     }
 
     private Map<String, String> resultat(String type, String label, String url) {

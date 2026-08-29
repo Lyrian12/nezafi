@@ -78,6 +78,21 @@
                            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
+                <!-- Enseigne / Activité -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Nom d'enseigne</label>
+                        <input type="text" name="nomEnseigne" th:value="${contrat.nomEnseigne}" placeholder="ex : Les Tiktokeurs, ETS WANG..."
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2">Activité</label>
+                        <input type="text" name="activite" th:value="${contrat.activite}" placeholder="ex : Vente de vêtements"
+                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                    </div>
+                </div>
+                <p class="text-[11px] text-slate-400 -mt-4">Le nom d'enseigne est celui présenté au public par le client — souvent différent de son nom légal.</p>
+
                 <!-- Terms -->
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-2">Termes et conditions</label>
@@ -134,24 +149,7 @@
                                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                 </div>
-                <p class="text-[11px] text-slate-400 -mt-4">Indépendante du loyer : durée et montant librement choisis, un locataire peut par exemple payer 6 mois de caution cash et le reste via l'échéancier.</p>
-
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Statut de la caution *</label>
-                    <select name="statutCaution" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
-                        <option value="DETENUE" th:selected="${contrat.statutCaution == null || contrat.statutCaution.name() == 'DETENUE'}">Détenue</option>
-                        <option value="RESTITUEE" th:selected="${contrat.statutCaution != null && contrat.statutCaution.name() == 'RESTITUEE'}">Restituée</option>
-                        <option value="RETENUE_PARTIELLEMENT" th:selected="${contrat.statutCaution != null && contrat.statutCaution.name() == 'RETENUE_PARTIELLEMENT'}">Retenue partiellement</option>
-                        <option value="RETENUE_TOTALEMENT" th:selected="${contrat.statutCaution != null && contrat.statutCaution.name() == 'RETENUE_TOTALEMENT'}">Retenue totalement</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Motif de retenue de la caution</label>
-                    <p class="text-[11px] text-slate-400 mb-2">Obligatoire uniquement si le statut ci-dessus est "Retenue partiellement" ou "Retenue totalement".</p>
-                    <textarea name="motifRetenueCaution" th:text="${contrat.motifRetenueCaution}" rows="2" placeholder="Facultatif, sauf caution retenue"
-                              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"></textarea>
-                </div>
+                <p class="text-[11px] text-slate-400 -mt-4">Indépendante du loyer : durée et montant librement choisis, un locataire peut par exemple payer 6 mois de caution cash et le reste via l'échéancier. Simple montant, sans statut ni motif de retenue.</p>
 
                 <!-- Préavis -->
                 <div>
@@ -214,13 +212,13 @@
         }
     });
 
-    // Suggestion de montant = durée (mois) × prix de l'emplacement sélectionné.
-    // Reste une suggestion : les champs montant restent librement modifiables ensuite.
+    // Pré-remplissage à la sélection de l'emplacement : le loyer reprend directement le
+    // prix de l'emplacement, la caution reste calculée par durée × prix. Les deux montants
+    // restent librement modifiables ensuite pour les cas négociés différemment.
     (function () {
         var emplacementSelect = document.getElementById('emplacement-select');
-        var dureeLoyer = document.getElementById('duree-loyer');
-        var montantLoyer = document.getElementById('montant-loyer');
         var dureeCaution = document.getElementById('duree-caution');
+        var montantLoyer = document.getElementById('montant-loyer');
         var montantCaution = document.getElementById('montant-caution');
 
         function prixEmplacement() {
@@ -229,20 +227,22 @@
             return isNaN(prix) ? null : prix;
         }
 
-        function suggerer(dureeInput, montantInput) {
+        function suggererCaution() {
             var prix = prixEmplacement();
-            var duree = parseInt(dureeInput.value, 10);
+            var duree = parseInt(dureeCaution.value, 10);
             if (prix !== null && !isNaN(duree)) {
-                montantInput.value = (prix * duree).toFixed(2);
+                montantCaution.value = (prix * duree).toFixed(2);
             }
         }
 
         emplacementSelect.addEventListener('change', function () {
-            suggerer(dureeLoyer, montantLoyer);
-            suggerer(dureeCaution, montantCaution);
+            var prix = prixEmplacement();
+            if (prix !== null) {
+                montantLoyer.value = prix.toFixed(2);
+            }
+            suggererCaution();
         });
-        dureeLoyer.addEventListener('input', function () { suggerer(dureeLoyer, montantLoyer); });
-        dureeCaution.addEventListener('input', function () { suggerer(dureeCaution, montantCaution); });
+        dureeCaution.addEventListener('input', suggererCaution);
     })();
 </script>
 
