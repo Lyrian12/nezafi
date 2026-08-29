@@ -29,7 +29,7 @@
     <!-- Formulaire -->
     <div class="max-w-2xl">
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-8">
-            <form th:action="${emplacement.id == null} ? @{/admin/stores/add} : @{/admin/stores/edit/{id}(id=${emplacement.id})}" method="post" class="space-y-6">
+            <form th:action="${emplacement.id == null} ? @{/admin/stores/add} : @{/admin/stores/edit/{id}(id=${emplacement.id})}" method="post" enctype="multipart/form-data" class="space-y-6">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 
                 <!-- Store Name -->
@@ -39,11 +39,18 @@
                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
-                <!-- Image URL -->
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">URL de l'image *</label>
-                    <input type="url" name="imageUrl" th:value="${emplacement.imageUrl}" placeholder="https://exemple.com/image.jpg" required
-                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
+                <!-- Photo : uniquement à la création (facultative) — la galerie complète se
+                     gère ensuite depuis la fiche détail de l'emplacement, sans repasser par ce
+                     formulaire. -->
+                <div th:if="${emplacement.id == null}">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Photo</label>
+                    <input type="file" name="image" accept="image/*"
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-900 file:text-white dark:file:bg-slate-700 hover:file:bg-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Facultatif — vous pourrez ajouter d'autres photos ensuite depuis la fiche de l'emplacement.</p>
+                </div>
+                <div th:if="${emplacement.id != null}" class="text-[11px] text-slate-400 dark:text-slate-500">
+                    Les photos se gèrent désormais depuis
+                    <a th:href="@{/admin/stores/{id}(id=${emplacement.id})}" class="underline font-semibold">la fiche de l'emplacement</a>.
                 </div>
 
                 <!-- Status -->

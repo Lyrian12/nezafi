@@ -88,4 +88,11 @@ public class AuthController {
         }
         return "signin";
     }
+
+    // Pas de procédure de réinitialisation de mot de passe implémentée pour l'instant
+    // (cf. AdminController.addClient) : simple page d'information plutôt qu'un lien mort.
+    @GetMapping("/forgot-password")
+    public String forgotPassword() {
+        return "forgot-password";
+    }
 }

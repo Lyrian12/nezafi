@@ -16,6 +16,7 @@ import com.sagimo.nezafi.echeance.EcheanceRepository;
 import com.sagimo.nezafi.echeance.EcheanceStatusService;
 import com.sagimo.nezafi.echeance.StatutEcheance;
 import com.sagimo.nezafi.echeance.TypeEcheance;
+import com.sagimo.nezafi.storage.DocumentJointService;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
@@ -29,8 +30,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -45,8 +48,14 @@ import java.util.UUID;
 
 @Controller
 @RequestMapping("/admin")
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
+
+    // Cette classe mélange des routes aux droits différents (lecture vs écriture, ADMIN seul
+    // pour les suppressions) : plus de @PreAuthorize de classe unique, chaque méthode porte le
+    // sien. Constantes pour éviter de répéter les mêmes expressions ~20 fois.
+    private static final String LECTURE_STAFF = "hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')";
+    private static final String EDITION_STAFF = "hasAnyRole('ADMIN','SECRETARIAT')";
+    private static final String ADMIN_SEUL = "hasRole('ADMIN')";
 
     private final EmplacementRepository emplacementRepository;
     private final ContratRepository contratRepository;
@@ -57,12 +66,13 @@ public class AdminController {
     private final EcheanceStatusService echeanceStatusService;
     private final AuditService auditService;
     private final AdminAlertService adminAlertService;
+    private final DocumentJointService documentJointService;
 
     public AdminController(EmplacementRepository emplacementRepository, ContratRepository contratRepository,
                             UserRepository userRepository, PasswordEncoder passwordEncoder,
                             ContratStatusService contratStatusService, EcheanceRepository echeanceRepository,
                             EcheanceStatusService echeanceStatusService, AuditService auditService,
-                            AdminAlertService adminAlertService) {
+                            AdminAlertService adminAlertService, DocumentJointService documentJointService) {
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
@@ -72,6 +82,7 @@ public class AdminController {
         this.echeanceStatusService = echeanceStatusService;
         this.auditService = auditService;
         this.adminAlertService = adminAlertService;
+        this.documentJointService = documentJointService;
     }
 
     /** Résout l'admin actuellement connecté, pour attribuer les entrées du journal d'audit. */
@@ -105,6 +116,7 @@ public class AdminController {
 
     // Store Management
     @GetMapping("/stores")
+    @PreAuthorize(LECTURE_STAFF)
     public String storesPage(
             @RequestParam(required = false) Palier palier,
             @RequestParam(required = false) StatutEmplacement statut,
@@ -159,6 +171,7 @@ public class AdminController {
     }
 
     @GetMapping("/stores/{id}")
+    @PreAuthorize(LECTURE_STAFF)
     public String storeDetail(@PathVariable Long id, Model model) {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -170,28 +183,51 @@ public class AdminController {
         model.addAttribute("contrats", contrats);
         model.addAttribute("estOrpheline", emplacement.getStatut() == StatutEmplacement.NON_DISPONIBLE
                 && adminAlertService.sansContratActif(emplacement));
+        model.addAttribute("photos", documentJointService.lister("Emplacement", id));
         return "admin-store-detail";
     }
 
+    @PostMapping("/stores/{id}/photos")
+    @PreAuthorize(EDITION_STAFF)
+    public String ajouterPhoto(@PathVariable Long id, @RequestParam MultipartFile photo,
+                                RedirectAttributes redirectAttributes) throws IOException {
+        emplacementRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Store not found"));
+
+        if (photo.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Aucune photo sélectionnée.");
+            return "redirect:/admin/stores/" + id;
+        }
+        String type = photo.getContentType();
+        if (type == null || !type.startsWith("image/")) {
+            redirectAttributes.addFlashAttribute("error", "Le fichier doit être une image.");
+            return "redirect:/admin/stores/" + id;
+        }
+
+        documentJointService.attacher("Emplacement", id, photo, "emplacements");
+        return "redirect:/admin/stores/" + id;
+    }
+
     @GetMapping("/stores/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addStorePage(Model model) {
         model.addAttribute("emplacement", new Emplacement());
         return "admin-store-form";
     }
 
     @PostMapping("/stores/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addStore(
             @RequestParam String name,
-            @RequestParam String imageUrl,
+            @RequestParam(required = false) MultipartFile image,
             @RequestParam(defaultValue = "DISPONIBLE") String statut,
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
             @RequestParam BigDecimal prix,
-            @RequestParam String categorie) {
+            @RequestParam String categorie) throws IOException {
 
         Emplacement emplacement = new Emplacement();
         emplacement.setName(name);
-        emplacement.setImageUrl(imageUrl);
         emplacement.setStatut(StatutEmplacement.valueOf(statut));
         emplacement.setPalier(Palier.valueOf(palier));
         emplacement.setSuperficie(superficie);
@@ -200,10 +236,18 @@ public class AdminController {
         emplacement.setAddedAt(LocalDateTime.now());
 
         emplacementRepository.save(emplacement);
+
+        // Photo facultative à la création : l'admin peut aussi n'en ajouter aucune ici et
+        // compléter la galerie plus tard depuis la fiche détail (cf. /stores/{id}/photos).
+        if (image != null && !image.isEmpty()) {
+            documentJointService.attacher("Emplacement", emplacement.getId(), image, "emplacements");
+        }
+
         return "redirect:/admin/stores";
     }
 
     @GetMapping("/stores/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String editStorePage(@PathVariable Long id, Model model) {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -212,10 +256,10 @@ public class AdminController {
     }
 
     @PostMapping("/stores/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String editStore(
             @PathVariable Long id,
             @RequestParam String name,
-            @RequestParam String imageUrl,
             @RequestParam String statut,
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
@@ -229,7 +273,6 @@ public class AdminController {
         BigDecimal ancienPrix = emplacement.getPrix();
 
         emplacement.setName(name);
-        emplacement.setImageUrl(imageUrl);
         emplacement.setStatut(StatutEmplacement.valueOf(statut));
         emplacement.setPalier(Palier.valueOf(palier));
         emplacement.setSuperficie(superficie);
@@ -249,6 +292,7 @@ public class AdminController {
     }
 
     @GetMapping("/stores/delete/{id}")
+    @PreAuthorize(ADMIN_SEUL)
     public String deleteStore(@PathVariable Long id) {
         emplacementRepository.deleteById(id);
         return "redirect:/admin/stores";
@@ -256,6 +300,7 @@ public class AdminController {
 
     // Contract Management
     @GetMapping("/contracts")
+    @PreAuthorize(LECTURE_STAFF)
     public String contractsPage(
             @RequestParam(required = false) StatutContrat statut,
             @RequestParam(required = false) String search,
@@ -291,6 +336,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addContractPage(Model model) {
         model.addAttribute("contrat", new Contrat());
         model.addAttribute("emplacements", emplacementRepository.findAll());
@@ -299,6 +345,7 @@ public class AdminController {
     }
 
     @PostMapping("/contracts/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addContract(
             @RequestParam Long emplacementId,
             @RequestParam Long locataireId,
@@ -428,6 +475,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String editContractPage(@PathVariable Long id, Model model) {
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
@@ -438,6 +486,7 @@ public class AdminController {
     }
 
     @PostMapping("/contracts/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String editContract(
             @PathVariable Long id,
             @RequestParam Long emplacementId,
@@ -562,6 +611,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/delete/{id}")
+    @PreAuthorize(ADMIN_SEUL)
     public String deleteContract(@PathVariable Long id, Authentication authentication) {
         contratRepository.findById(id).ifPresent(contrat -> {
             Map<String, Object> ancienSnapshot = contratSnapshot(contrat);
@@ -576,6 +626,7 @@ public class AdminController {
     }
 
     @PostMapping("/contracts/{id}/resilier")
+    @PreAuthorize(EDITION_STAFF)
     public String resilierContract(
             @PathVariable Long id,
             @RequestParam String motif,
@@ -608,6 +659,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/{id}/renew")
+    @PreAuthorize(EDITION_STAFF)
     public String renewContractPage(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         Contrat ancien = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
@@ -643,6 +695,7 @@ public class AdminController {
 
     // Client Management
     @GetMapping("/clients")
+    @PreAuthorize(EDITION_STAFF)
     public String clientsPage(@RequestParam(required = false) String search,
                                @RequestParam(required = false) String contratActif, Model model) {
         List<User> clients = (search == null || search.isBlank())
@@ -668,12 +721,14 @@ public class AdminController {
     }
 
     @GetMapping("/clients/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addClientPage(Model model) {
         model.addAttribute("client", new User());
         return "admin-client-form";
     }
 
     @PostMapping("/clients/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addClient(
             @RequestParam String nom,
             @RequestParam String prenom,
@@ -731,6 +786,7 @@ public class AdminController {
     }
 
     @GetMapping("/clients/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String clientDetail(@PathVariable Long id, Model model) {
         User client = userRepository.findById(id)
                 .filter(u -> u.getRole() == Role.ROLE_LOCATAIRE)

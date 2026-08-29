@@ -81,6 +81,10 @@ public class Contrat {
 
     private LocalDate datePreavis;
 
+    // La facture de paiement vit désormais dans com.sagimo.nezafi.storage.DocumentJoint
+    // (nomEntite="Contrat", entiteId=this.id) — même mécanisme générique que les photos
+    // d'emplacement, cf. DocumentJointService.
+
     // Renouvellement : un contrat renouvelé n'est jamais modifié en place, il donne
     // naissance à un nouveau Contrat qui pointe vers lui via ce champ.
     @ManyToOne(fetch = FetchType.LAZY)

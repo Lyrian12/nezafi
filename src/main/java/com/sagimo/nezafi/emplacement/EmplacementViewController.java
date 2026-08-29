@@ -1,5 +1,6 @@
 package com.sagimo.nezafi.emplacement;
 
+import com.sagimo.nezafi.storage.DocumentJointService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,9 +16,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class EmplacementViewController {
 
     private final EmplacementRepository emplacementRepository;
+    private final DocumentJointService documentJointService;
 
-    public EmplacementViewController(EmplacementRepository emplacementRepository) {
+    public EmplacementViewController(EmplacementRepository emplacementRepository, DocumentJointService documentJointService) {
         this.emplacementRepository = emplacementRepository;
+        this.documentJointService = documentJointService;
     }
 
     @GetMapping("/{id}")
@@ -25,6 +28,7 @@ public class EmplacementViewController {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Emplacement not found"));
         model.addAttribute("shop", emplacement);
+        model.addAttribute("photos", documentJointService.lister("Emplacement", id));
         return "emplacement-detail";
     }
 
@@ -32,14 +36,12 @@ public class EmplacementViewController {
     public String updateEmplacement(
             @PathVariable Long id,
             @RequestParam String name,
-            @RequestParam String imageUrl,
             @RequestParam String statut) {
 
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Emplacement not found"));
 
         emplacement.setName(name);
-        emplacement.setImageUrl(imageUrl);
         emplacement.setStatut(StatutEmplacement.valueOf(statut));
 
         emplacementRepository.save(emplacement);

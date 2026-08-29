@@ -58,6 +58,7 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     public void run(String... args) {
         admin = seedAdmin();
+        seedPersonnel();
 
         if (emplacementRepository.count() > 0) {
             // Déjà seedé (redémarrage sans perte de la DB en mémoire) : rien à refaire.
@@ -157,11 +158,37 @@ public class DataSeeder implements CommandLineRunner {
         });
     }
 
+    /** Comptes de test pour les rôles personnel, mots de passe simples à retenir pour la
+     *  démo/QA — voir {@link com.sagimo.nezafi.user.Role} pour le détail des permissions. */
+    private void seedPersonnel() {
+        userRepository.findByEmail("secretariat@nezafi.com").orElseGet(() -> {
+            User secretariat = new User();
+            secretariat.setNom("Nezafi");
+            secretariat.setPrenom("Secrétariat");
+            secretariat.setTelephone("+212600000001");
+            secretariat.setEmail("secretariat@nezafi.com");
+            secretariat.setPassword(passwordEncoder.encode("secretariat123"));
+            secretariat.setRole(Role.ROLE_SECRETARIAT);
+            return userRepository.save(secretariat);
+        });
+        userRepository.findByEmail("comptable@nezafi.com").orElseGet(() -> {
+            User comptable = new User();
+            comptable.setNom("Nezafi");
+            comptable.setPrenom("Comptable");
+            comptable.setTelephone("+212600000002");
+            comptable.setEmail("comptable@nezafi.com");
+            comptable.setPassword(passwordEncoder.encode("comptable123"));
+            comptable.setRole(Role.ROLE_COMPTABLE);
+            return userRepository.save(comptable);
+        });
+    }
+
     private Emplacement creerEmplacement(String name, Palier palier, CategorieEmplacement categorie,
                                           String superficie, String prix, StatutEmplacement statut) {
         Emplacement emplacement = new Emplacement();
         emplacement.setName(name);
-        emplacement.setImageUrl("https://images.unsplash.com/photo-1521572267360-ee0c2909d518");
+        // Pas de photo au seeding : les emplacements de démo montrent volontairement l'état
+        // "Aucune photo" de la fiche détail (cf. AdminController / admin-store-detail.html).
         emplacement.setStatut(statut);
         emplacement.setPalier(palier);
         emplacement.setSuperficie(new BigDecimal(superficie));

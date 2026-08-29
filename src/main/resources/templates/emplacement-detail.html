@@ -53,10 +53,20 @@
         <!-- Left Column - Image and Main Info -->
         <div class="lg:col-span-2 space-y-6">
             
-            <!-- Image -->
+            <!-- Photos -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="h-80 w-full bg-slate-100 overflow-hidden">
-                    <img th:src="${shop.imageUrl}" alt="Image de l'emplacement" class="w-full h-full object-cover">
+                    <img th:if="${not #lists.isEmpty(photos)}" th:src="@{/files/documents/{id}(id=${photos[0].id})}"
+                         alt="Image de l'emplacement" class="w-full h-full object-cover">
+                    <div th:if="${#lists.isEmpty(photos)}" class="w-full h-full flex items-center justify-center text-slate-300 text-sm font-semibold">
+                        Aucune photo
+                    </div>
+                </div>
+                <div th:if="${photos.size() > 1}" class="grid grid-cols-4 gap-2 p-3">
+                    <a th:each="photo, iter : ${photos}" th:if="${iter.index > 0}" th:href="@{/files/documents/{id}(id=${photo.id})}" target="_blank"
+                       class="block h-16 rounded-lg overflow-hidden border border-slate-200 hover:opacity-80 transition-opacity">
+                        <img th:src="@{/files/documents/{id}(id=${photo.id})}" alt="Photo de l'emplacement" class="w-full h-full object-cover">
+                    </a>
                 </div>
             </div>
 

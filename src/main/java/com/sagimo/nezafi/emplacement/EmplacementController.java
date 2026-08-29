@@ -39,7 +39,6 @@ public class EmplacementController {
         return emplacementRepository.findById(id)
                 .map(existing -> {
                     existing.setName(emplacement.getName());
-                    existing.setImageUrl(emplacement.getImageUrl());
                     existing.setStatut(emplacement.getStatut());
                     existing.setPalier(emplacement.getPalier());
                     existing.setSuperficie(emplacement.getSuperficie());
