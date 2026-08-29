@@ -22,7 +22,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/signup", "/signin", "/register", "/css/**", "/js/**", "/h2-console/**").permitAll()
+                .requestMatchers("/", "/signup", "/signin", "/forgot-password", "/register", "/css/**", "/js/**", "/h2-console/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/shops/**", "/contracts/**").hasRole("LOCATAIRE")
                 .requestMatchers("/api/**").hasAnyRole("ADMIN", "LOCATAIRE")
