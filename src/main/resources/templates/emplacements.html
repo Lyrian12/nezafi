@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tableau de bord - Gestion de Boutique</title>
+    <title>Tableau de bord - Gestion des Emplacements</title>
     <!-- Tailwind CSS pour un design moderne -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -40,7 +40,7 @@
     <!-- SECTION DES STATISTIQUES GLOBALES -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Boutiques</p>
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Emplacements</p>
             <p class="text-3xl font-bold text-slate-900" th:text="${shops.size()}">01</p>
         </div>
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -53,27 +53,27 @@
         </div>
     </div>
 
-    <!-- SECTION CENTRALE : LISTE DES BOUTIQUES -->
+    <!-- SECTION CENTRALE : LISTE DES EMPLACEMENTS -->
     <div class="space-y-6">
         <div class="flex items-center justify-between">
-            <h2 class="text-xl font-bold text-slate-900">Vos Boutiques</h2>
-            <span class="text-xs text-slate-400" th:text="'Affichage de ' + ${shops.size()} + ' boutique(s)'">Affichage de 1 boutique</span>
+            <h2 class="text-xl font-bold text-slate-900">Vos Emplacements</h2>
+            <span class="text-xs text-slate-400" th:text="'Affichage de ' + ${shops.size()} + ' emplacement(s)'">Affichage de 1 emplacement</span>
         </div>
 
-        <!-- Grille des boutiques connectée aux vraies données -->
+        <!-- Grille des emplacements connectée aux vraies données -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div th:each="shop : ${shops}" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-all">
 
-                <!-- Image de la boutique -->
+                <!-- Image de l'emplacement -->
                 <div class="h-40 w-full bg-slate-100 overflow-hidden relative">
-                    <img th:src="${shop.imageUrl}" alt="Image de la boutique" class="w-full h-full object-cover">
+                    <img th:src="${shop.imageUrl}" alt="Image de l'emplacement" class="w-full h-full object-cover">
                     <span class="absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-sm text-slate-800 shadow-sm" th:text="${shop.statut}">DISPONIBLE</span>
                 </div>
 
                 <!-- Informations textuelles -->
                 <div class="p-6 flex flex-col flex-grow justify-between">
                     <div>
-                        <h3 class="font-bold text-slate-900 text-lg mb-1" th:text="${shop.name}">Nom de la boutique</h3>
+                        <h3 class="font-bold text-slate-900 text-lg mb-1" th:text="${shop.name}">Nom de l'emplacement</h3>
                         <p class="text-xs text-slate-400 mb-4">
                             Ajoutée le : <span th:text="${#temporals.format(shop.addedAt, 'dd-MM-yyyy HH:mm')}">26-08-2026 05:02</span>
                         </p>

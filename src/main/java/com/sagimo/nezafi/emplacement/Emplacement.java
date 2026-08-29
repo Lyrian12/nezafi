@@ -1,4 +1,4 @@
-package com.sagimo.nezafi.boutique;
+package com.sagimo.nezafi.emplacement;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.sagimo.nezafi.contrat.Contrat;
@@ -13,11 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "boutiques")
+@Table(name = "emplacements")
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-public class Boutique {
+public class Emplacement {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -32,7 +32,7 @@ public class Boutique {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private StatutBoutique statut = StatutBoutique.DISPONIBLE;
+    private StatutEmplacement statut = StatutEmplacement.DISPONIBLE;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -46,9 +46,9 @@ public class Boutique {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private CategorieBoutique categorie;
+    private CategorieEmplacement categorie;
 
     @JsonIgnore
-    @OneToMany(mappedBy = "boutique", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "emplacement", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Contrat> contrats = new ArrayList<>();
 }

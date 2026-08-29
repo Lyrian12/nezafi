@@ -1,4 +1,4 @@
-package com.sagimo.nezafi.boutique;
+package com.sagimo.nezafi.emplacement;
 
 public enum Palier {
     PALIER_1,
