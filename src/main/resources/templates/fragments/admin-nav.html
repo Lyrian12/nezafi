@@ -13,9 +13,12 @@
      former une paire cohérente au lieu de se chevaucher. Distincte du lien "← Retour aux X"
      déjà présent sur les formulaires/détails (lui reste interne au module, plus bas dans
      l'en-tête : les deux ne se chevauchent pas). -->
-<a th:fragment="panelClose" th:href="@{/admin/dashboard}"
+<!-- COMPTABLE n'a pas accès à /admin/dashboard (pas de tableau de bord général pour ce
+     rôle, cf. AdminDashboardController) : le bouton retour le ramène plutôt sur son
+     périmètre, la liste des échéances. -->
+<a th:fragment="panelClose" th:href="${estComptable} ? @{/admin/echeances} : @{/admin/dashboard}"
    class="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0"
-   title="Retour au tableau de bord" aria-label="Retour au tableau de bord">
+   title="Retour" aria-label="Retour">
     <span class="w-5 h-5" th:insert="~{fragments/icons :: arrowLeft}"></span>
 </a>
 
@@ -35,7 +38,9 @@
 <!-- RECHERCHE GLOBALE — cherche à la fois dans emplacements, clients et contrats
      (/admin/search) et redirige vers la fiche correspondante. Distincte des filtres
      propres à chaque page, présente partout dans l'admin. -->
-<div th:fragment="globalSearch" class="relative w-80" id="global-search-wrapper">
+<!-- /admin/search est réservé à ADMIN/SECRETARIAT (cf. GlobalSearchController : la recherche
+     mène aussi vers des fiches client, hors périmètre de COMPTABLE) : barre masquée pour lui. -->
+<div th:fragment="globalSearch" th:if="${!estComptable}" class="relative w-80" id="global-search-wrapper">
     <input type="text" id="global-search-input" autocomplete="off"
            placeholder="Rechercher un emplacement, un client, un contrat..."
            class="bg-white border border-slate-200 px-4 py-2 rounded-xl text-xs w-full focus:outline-none focus:border-slate-400">

@@ -38,7 +38,7 @@
                 <span class="w-3.5 h-3.5" th:insert="~{fragments/icons :: fileText}"></span>
                 Export PDF
             </a>
-            <a th:href="@{/admin/stores/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
+            <a th:if="${peutModifier}" th:href="@{/admin/stores/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
                 + Ajouter un emplacement
             </a>
         </div>
@@ -149,14 +149,15 @@
                 <td class="py-4 px-6 text-slate-600 dark:text-slate-300 font-medium"
                     th:with="client=${clientByEmplacementId.get(store.id)}">
                     <span th:if="${client != null}" th:text="${client.prenom + ' ' + client.nom}">Client</span>
-                    <a th:if="${client != null}" th:href="@{/admin/clients/{id}(id=${client.id})}"
+                    <!-- Comptable : nom du locataire visible, mais pas la fiche client complète. -->
+                    <a th:if="${client != null and !estComptable}" th:href="@{/admin/clients/{id}(id=${client.id})}"
                        class="text-slate-600 dark:text-slate-300 font-bold hover:underline ml-1">Voir</a>
                     <span th:if="${client == null}" class="text-slate-300 dark:text-slate-600">—</span>
                 </td>
                 <td class="py-4 px-6 text-right space-x-2 whitespace-nowrap">
                     <a th:href="@{/admin/stores/{id}(id=${store.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Voir</a>
-                    <a th:href="@{/admin/stores/edit/{id}(id=${store.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Modifier</a>
-                    <a th:href="@{/admin/stores/delete/{id}(id=${store.id})}" class="text-red-500 dark:text-red-400 font-bold hover:underline">Supprimer</a>
+                    <a th:if="${peutModifier}" th:href="@{/admin/stores/edit/{id}(id=${store.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Modifier</a>
+                    <a th:if="${estAdmin}" th:href="@{/admin/stores/delete/{id}(id=${store.id})}" class="text-red-500 dark:text-red-400 font-bold hover:underline">Supprimer</a>
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(stores)}">
