@@ -35,3 +35,6 @@ cookies.txt
 
 ### ENV files ##
 .env
+
+### Claude Code worktrees (jamais suivis : ce sont des checkouts, pas du contenu du dépôt) ###
+.claude/worktrees/
