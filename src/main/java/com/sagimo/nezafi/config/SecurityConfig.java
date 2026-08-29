@@ -24,10 +24,16 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            // La console H2 garde son exemption CSRF (son propre flux de formulaires ne porte
+            // pas le jeton CSRF de l'application) — mais elle n'est plus accessible à tous, cf.
+            // hasRole("ADMIN") ci-dessous : accès direct en SQL à toute la base, réservé ADMIN.
             .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/signup", "/signin", "/forgot-password", "/register", "/css/**", "/js/**", "/h2-console/**").permitAll()
+                .requestMatchers("/", "/signup", "/signin", "/forgot-password", "/register", "/css/**", "/js/**").permitAll()
+                // Console H2 : accès direct en SQL à toute la base (y compris les mots de passe
+                // hashés), réservée à ADMIN — elle était avant ouverte à tous sans connexion.
+                .requestMatchers("/h2-console/**").hasRole("ADMIN")
                 // Règle grossière ici : /admin/staff (gestion des comptes) et /admin/audit
                 // restent ADMIN uniquement via ces deux matchers plus spécifiques, évalués
                 // avant la règle large qui suit. Le détail fin (SECRETARIAT en écriture,
