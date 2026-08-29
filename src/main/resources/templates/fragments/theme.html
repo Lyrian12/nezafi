@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- À inclure une fois dans le <head> de chaque page admin, à la place de l'ancien
+     <script src="https://cdn.tailwindcss.com"></script> :
+       <th:block th:replace="~{fragments/theme :: head}"></th:block>
+     Ordre important : le script de détection du thème passe AVANT le CDN Tailwind
+     (il n'a besoin de rien d'autre que le DOM, et poser la classe "dark" le plus tôt
+     possible limite le flash de mauvais thème) ; la config Tailwind (darkMode: 'class')
+     doit elle venir APRÈS le script du CDN, car c'est lui qui crée l'objet global
+     `tailwind` — la définir avant ferait planter le script silencieusement. -->
+<th:block th:fragment="head">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+    (function () {
+        try {
+            var stored = localStorage.getItem('nezafi-theme');
+            var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            if (stored ? stored === 'dark' : prefersDark) {
+                document.documentElement.classList.add('dark');
+            }
+        } catch (e) { /* stockage indisponible : on reste sur le thème clair par défaut */ }
+    })();
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    // Étend la police par défaut (Tailwind applique fontFamily.sans à <html> via Preflight,
+    // donc tout le projet hérite de Manrope sans avoir besoin de la classe font-sans partout).
+    tailwind.config = {
+        darkMode: 'class',
+        theme: { extend: { fontFamily: { sans: ['Manrope', 'ui-sans-serif', 'system-ui', 'sans-serif'] } } }
+    };
+</script>
+<style>
+    @keyframes panel-in {
+        from { opacity: 0; transform: translateY(8px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .animate-panel-in { animation: panel-in 0.18s ease-out; }
+    @media (prefers-reduced-motion: reduce) {
+        .animate-panel-in { animation: none; }
+    }
+</style>
+</th:block>
+
+<!-- Bouton clair/sombre : seul élément affiché en haut à droite du tableau de bord.
+     Le state ne dépend d'aucun framework JS : bascule la classe .dark sur <html> et
+     la persiste dans localStorage, lu par le script ci-dessus au prochain chargement. -->
+<button type="button" th:fragment="toggleButton"
+        onclick="document.documentElement.classList.toggle('dark'); localStorage.setItem('nezafi-theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');"
+        class="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shrink-0"
+        title="Changer de thème" aria-label="Changer de thème">
+    <span class="w-5 h-5 block dark:hidden" th:insert="~{fragments/icons :: sun}"></span>
+    <span class="w-5 h-5 hidden dark:block" th:insert="~{fragments/icons :: moon}"></span>
+</button>
+
+</body>
+</html>
