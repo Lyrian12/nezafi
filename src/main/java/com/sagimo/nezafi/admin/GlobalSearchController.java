@@ -27,7 +27,10 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/admin/search")
-@PreAuthorize("hasRole('ADMIN')")
+// Pas COMPTABLE : les résultats "Client" renvoient vers la fiche client complète, hors de son
+// périmètre (lecture seule sur les infos financières uniquement) — pas de recherche globale
+// plutôt qu'une recherche à moitié fonctionnelle.
+@PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT')")
 public class GlobalSearchController {
 
     private static final int LIMITE_PAR_CATEGORIE = 5;

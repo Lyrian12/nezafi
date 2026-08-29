@@ -46,8 +46,12 @@ import java.util.Optional;
  */
 @Controller
 @RequestMapping("/admin")
-@PreAuthorize("hasRole('ADMIN')")
 public class EcheanceAdminController {
+
+    // Même logique que AdminController : lecture ouverte à ADMIN/SECRETARIAT/COMPTABLE,
+    // écriture réservée à ADMIN/SECRETARIAT (COMPTABLE ne modifie jamais rien).
+    private static final String LECTURE_STAFF = "hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')";
+    private static final String EDITION_STAFF = "hasAnyRole('ADMIN','SECRETARIAT')";
 
     private final EcheanceRepository echeanceRepository;
     private final PaiementRepository paiementRepository;
@@ -80,6 +84,7 @@ public class EcheanceAdminController {
     }
 
     @GetMapping("/contracts/{id}")
+    @PreAuthorize(LECTURE_STAFF)
     public String contractDetail(@PathVariable Long id, Model model) {
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
@@ -109,6 +114,7 @@ public class EcheanceAdminController {
     }
 
     @PostMapping("/contracts/{id}/facture")
+    @PreAuthorize(EDITION_STAFF)
     public String uploaderFacturePaiement(@PathVariable Long id, @RequestParam MultipartFile facture,
                                            Authentication authentication, RedirectAttributes redirectAttributes)
             throws IOException {
@@ -137,6 +143,7 @@ public class EcheanceAdminController {
     }
 
     @GetMapping("/contracts/{id}/facture")
+    @PreAuthorize(LECTURE_STAFF)
     public void telechargerFacturePaiement(@PathVariable Long id, HttpServletResponse response) throws IOException {
         Optional<DocumentJoint> facture = documentJointService.premier("Contrat", id);
         if (facture.isEmpty()) {
@@ -155,6 +162,7 @@ public class EcheanceAdminController {
     }
 
     @PostMapping("/echeances/{id}/paiements")
+    @PreAuthorize(EDITION_STAFF)
     public String enregistrerPaiement(
             @PathVariable Long id,
             @RequestParam BigDecimal montantPaye,
@@ -198,6 +206,7 @@ public class EcheanceAdminController {
     }
 
     @GetMapping("/echeances")
+    @PreAuthorize(LECTURE_STAFF)
     public String echeancesPage(
             @RequestParam(required = false) StatutEcheance statut,
             @RequestParam(required = false) TypeEcheance type,
@@ -241,6 +250,7 @@ public class EcheanceAdminController {
     // Ancien lien "Échéances en retard" : conservé pour ne pas casser un signet existant,
     // redirige vers la vue générale pré-filtrée sur EN_RETARD.
     @GetMapping("/echeances/en-retard")
+    @PreAuthorize(LECTURE_STAFF)
     public String echeancesEnRetard() {
         return "redirect:/admin/echeances?statut=EN_RETARD";
     }

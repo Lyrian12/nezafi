@@ -46,8 +46,16 @@ public class HomeController {
 
         String role = user.getRole().name();
 
-        if (role.equals("ROLE_ADMIN")) {
+        if (role.equals("ROLE_ADMIN") || role.equals("ROLE_SECRETARIAT")) {
+            // SECRETARIAT voit le même tableau de bord qu'ADMIN, à l'exception du bloc
+            // journal d'audit (masqué côté template/contrôleur, cf. AdminDashboardController).
             return "redirect:/admin/dashboard";
+        }
+        if (role.equals("ROLE_COMPTABLE")) {
+            // COMPTABLE n'a pas accès au tableau de bord général (chiffres d'occupation,
+            // clients...) : atterrissage direct sur la liste des échéances/paiements, son
+            // périmètre strictement financier en lecture seule.
+            return "redirect:/admin/echeances";
         }
 
         // ROLE_LOCATAIRE - User dashboard
