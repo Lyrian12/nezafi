@@ -29,6 +29,9 @@
             <a th:href="@{/admin/contracts/export}" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
                 ⬇ Export comptable (CSV)
             </a>
+            <a th:href="@{/admin/contracts/export/pdf}" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
+                ⬇ Export PDF
+            </a>
             <a th:href="@{/admin/contracts/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
                 + Ajouter un contrat
             </a>
@@ -92,6 +95,7 @@
             <tr class="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
                 <th class="py-4 px-6">Emplacement</th>
                 <th class="py-4 px-6">Locataire</th>
+                <th class="py-4 px-6">Enseigne</th>
                 <th class="py-4 px-6">Date de début</th>
                 <th class="py-4 px-6">Date de fin</th>
                 <th class="py-4 px-6">Statut</th>
@@ -102,6 +106,7 @@
             <tr th:each="contract : ${contracts}" class="hover:bg-slate-50/80 transition-colors">
                 <td class="py-4 px-6 font-bold text-slate-900" th:text="${contract.emplacement.name}">Emplacement Name</td>
                 <td class="py-4 px-6 text-slate-600" th:text="${contract.locataire.prenom + ' ' + contract.locataire.nom}">Tenant Name</td>
+                <td class="py-4 px-6 text-slate-600" th:text="${contract.nomEnseigne} ?: '—'">Enseigne</td>
                 <td class="py-4 px-6 text-slate-600" th:text="${#temporals.format(contract.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
                 <td class="py-4 px-6 text-slate-600" th:text="${#temporals.format(contract.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
                 <td class="py-4 px-6">
@@ -119,7 +124,7 @@
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(contracts)}">
-                <td colspan="6" class="py-8 px-6 text-center text-slate-400">Aucun contrat ne correspond à ces filtres.</td>
+                <td colspan="7" class="py-8 px-6 text-center text-slate-400">Aucun contrat ne correspond à ces filtres.</td>
             </tr>
             </tbody>
         </table>

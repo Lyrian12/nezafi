@@ -19,7 +19,6 @@ import com.sagimo.nezafi.echeance.TypeEcheance;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,8 +31,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -684,39 +681,9 @@ public class AdminController {
         return "admin-contract-form";
     }
 
-    @GetMapping("/contracts/export")
-    public void exportActiveContracts(HttpServletResponse response) throws IOException {
-        List<Contrat> activeContracts = contratRepository.findByStatut(StatutContrat.VALIDER);
-
-        response.setContentType("text/csv; charset=UTF-8");
-        response.setHeader("Content-Disposition", "attachment; filename=\"contrats_actifs.csv\"");
-
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        PrintWriter writer = response.getWriter();
-        writer.write(0xFEFF); // BOM UTF-8 pour un affichage correct des accents dans Excel
-        writer.println("Emplacement;Locataire;Loyer (FCFA);Date de début;Date de fin");
-
-        for (Contrat contrat : activeContracts) {
-            BigDecimal loyer = contrat.getEmplacement().getPrix();
-            writer.println(String.join(";",
-                    csvField(contrat.getEmplacement().getName()),
-                    csvField(contrat.getLocataire().getPrenom() + " " + contrat.getLocataire().getNom()),
-                    loyer != null ? loyer.toPlainString() : "",
-                    contrat.getDateDebut().format(dateFormatter),
-                    contrat.getDateFin().format(dateFormatter)));
-        }
-        writer.flush();
-    }
-
-    private String csvField(String value) {
-        if (value == null) {
-            return "";
-        }
-        if (value.contains(";") || value.contains("\"") || value.contains("\n")) {
-            return "\"" + value.replace("\"", "\"\"") + "\"";
-        }
-        return value;
-    }
+    // L'export CSV/PDF des contrats vit désormais dans com.sagimo.nezafi.export.ExportController
+    // (même route /admin/contracts/export) : regroupé avec le nouvel export PDF pour éviter de
+    // dupliquer la logique de génération entre deux contrôleurs.
 
     // Client Management
     @GetMapping("/clients")

@@ -38,6 +38,7 @@
         <div class="mt-2 space-x-3">
             <a th:href="@{/admin/contracts/edit/{id}(id=${contrat.id})}" class="text-xs text-slate-400 font-medium hover:text-slate-600 underline">Modifier le contrat</a>
             <a th:href="@{/admin/contracts/{id}/renew(id=${contrat.id})}" class="text-xs text-slate-400 font-medium hover:text-slate-600 underline">Renouveler</a>
+            <a th:href="@{/admin/contracts/{id}/pdf(id=${contrat.id})}" target="_blank" class="text-xs text-slate-400 font-medium hover:text-slate-600 underline">Télécharger en PDF</a>
         </div>
     </div>
 
