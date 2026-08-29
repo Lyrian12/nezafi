@@ -127,7 +127,11 @@
                     <a th:href="@{/admin/contracts/{id}(id=${contract.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Voir</a>
                     <a th:if="${peutModifier}" th:href="@{/admin/contracts/edit/{id}(id=${contract.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Modifier</a>
                     <a th:if="${peutModifier}" th:href="@{/admin/contracts/{id}/renew(id=${contract.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Renouveler</a>
-                    <a th:if="${estAdmin}" th:href="@{/admin/contracts/delete/{id}(id=${contract.id})}" class="text-red-500 dark:text-red-400 font-bold hover:underline">Supprimer</a>
+                    <form th:if="${estAdmin}" th:action="@{/admin/contracts/delete/{id}(id=${contract.id})}" method="post" class="inline"
+                          onsubmit="return confirm('Supprimer ce contrat ?');">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="text-red-500 dark:text-red-400 font-bold hover:underline">Supprimer</button>
+                    </form>
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(contracts)}">

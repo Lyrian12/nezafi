@@ -291,7 +291,10 @@ public class AdminController {
         return "redirect:/admin/stores";
     }
 
-    @GetMapping("/stores/delete/{id}")
+    // POST (pas GET) : une suppression est une action destructrice, elle doit passer par le
+    // token CSRF déjà en place sur les formulaires — un lien/image GET en contournerait la
+    // protection CSRF (Spring Security ne protège par défaut que POST/PUT/DELETE/PATCH).
+    @PostMapping("/stores/delete/{id}")
     @PreAuthorize(ADMIN_SEUL)
     public String deleteStore(@PathVariable Long id) {
         emplacementRepository.deleteById(id);
@@ -610,7 +613,8 @@ public class AdminController {
         return null;
     }
 
-    @GetMapping("/contracts/delete/{id}")
+    // POST (pas GET) : voir le commentaire sur deleteStore ci-dessus, même raison.
+    @PostMapping("/contracts/delete/{id}")
     @PreAuthorize(ADMIN_SEUL)
     public String deleteContract(@PathVariable Long id, Authentication authentication) {
         contratRepository.findById(id).ifPresent(contrat -> {
