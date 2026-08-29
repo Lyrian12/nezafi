@@ -97,6 +97,13 @@ public class AdminDashboardController {
                 .anyMatch(autorite -> autorite.getAuthority().equals("ROLE_ADMIN"));
         model.addAttribute("estAdmin", estAdmin);
 
+        // Message de bienvenue personnalisé, en haut du tableau de bord (ADMIN/SECRETARIAT/
+        // COMPTABLE, les 3 rôles qui atterrissent ici).
+        String identifiant = authentication.getName();
+        userRepository.findByEmail(identifiant).or(() -> userRepository.findByTelephone(identifiant))
+                .ifPresent(utilisateur -> model.addAttribute("nomUtilisateurConnecte",
+                        utilisateur.getPrenom() + " " + utilisateur.getNom()));
+
         // Rattrape en premier les emplacements dont le contrat a simplement expiré sans qu'on y
         // touche (cf. ContratStatusService.rafraichirStatut), avant tout calcul d'alerte ou
         // d'occupation ci-dessous — sinon l'alerte "orphelin" se déclencherait sur un état déjà
@@ -169,12 +176,20 @@ public class AdminDashboardController {
         model.addAttribute("totalPayeParEcheance", totalPayeParEcheance);
 
         // Journal d'audit : dernières entrées — réservé à ADMIN (estAdmin), SECRETARIAT n'a
-        // pas accès au journal d'audit ; le bloc correspondant est masqué côté template.
+        // pas accès au journal d'audit ; le bloc correspondant est masqué côté template. Même
+        // restriction pour la liste des comptes du personnel juste en dessous (gestion des
+        // comptes déjà réservée à ADMIN sur /admin/staff, cohérent de la masquer ici aussi).
         if (estAdmin) {
             List<JournalAudit> dernieresEntreesAudit = journalAuditRepository.findAllByOrderByDateActionDesc().stream()
                     .limit(6)
                     .toList();
             model.addAttribute("dernieresEntreesAudit", dernieresEntreesAudit);
+
+            List<User> personnel = userRepository
+                    .findByRoleIn(List.of(Role.ROLE_ADMIN, Role.ROLE_SECRETARIAT, Role.ROLE_COMPTABLE)).stream()
+                    .sorted(Comparator.comparing(User::getNom))
+                    .toList();
+            model.addAttribute("personnel", personnel);
         }
 
         // Encaissements réellement payés par mois (pas le loyer affiché), filtrables par

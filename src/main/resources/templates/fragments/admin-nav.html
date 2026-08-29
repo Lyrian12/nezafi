@@ -19,6 +19,15 @@
     <span class="w-5 h-5" th:insert="~{fragments/icons :: arrowLeft}"></span>
 </a>
 
+<!-- "Mon compte" — icône discrète juste au-dessus de la déconnexion, même coin, même gabarit :
+     accessible à tout le personnel connecté (ADMIN/SECRETARIAT/COMPTABLE) mais volontairement
+     pas mise en avant, cf. MonCompteController. -->
+<a th:fragment="monCompteDock" th:href="@{/admin/mon-compte}"
+   class="fixed bottom-20 left-6 z-20 w-11 h-11 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 shadow-sm transition-colors"
+   title="Mon compte" aria-label="Mon compte">
+    <span class="w-5 h-5" th:insert="~{fragments/icons :: settings}"></span>
+</a>
+
 <!-- Déconnexion — seule icône flottante en bas à gauche, présente sur le tableau de bord et
      chaque page module (remplace l'ancien bouton texte du bas de la sidebar). -->
 <div th:fragment="logoutDock" class="fixed bottom-6 left-6 z-20">

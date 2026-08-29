@@ -51,7 +51,9 @@ public class AuditAdminController {
                 .toList();
 
         List<String> entites = toutes.stream().map(JournalAudit::getNomEntite).distinct().sorted().toList();
-        List<User> admins = userRepository.findByRole(Role.ROLE_ADMIN);
+        // Les 3 rôles staff peuvent désormais déclencher des actions auditées (pas seulement
+        // ADMIN) : le filtre doit pouvoir cibler n'importe lequel d'entre eux.
+        List<User> admins = userRepository.findByRoleIn(List.of(Role.ROLE_ADMIN, Role.ROLE_SECRETARIAT, Role.ROLE_COMPTABLE));
 
         model.addAttribute("entrees", entrees);
         model.addAttribute("entites", entites);

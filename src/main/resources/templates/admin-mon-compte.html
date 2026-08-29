@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Formulaire personnel</title>
+    <title>Admin - Mon compte</title>
     <th:block th:replace="~{fragments/theme :: head}"></th:block>
 </head>
 <body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
@@ -21,9 +21,8 @@
 
     <!-- En-tête -->
     <div class="mb-8">
-        <a th:href="@{/admin/staff}" class="text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300">← Retour au personnel</a>
-        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mt-4"
-            th:text="${membre.id == null} ? 'Ajouter un compte' : 'Modifier le compte'">Ajouter un compte</h1>
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mt-4">Mon compte</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Modifiez vos propres informations, y compris votre mot de passe.</p>
     </div>
 
     <!-- Formulaire -->
@@ -33,20 +32,23 @@
             <div th:if="${error}" class="p-3 bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-300 text-xs rounded-xl mb-6">
                 <span th:text="${error}">Erreur</span>
             </div>
+            <div th:if="${succes}" class="p-3 bg-lime-50 dark:bg-lime-950/40 border border-lime-100 dark:border-lime-800 text-lime-700 dark:text-lime-300 text-xs rounded-xl mb-6">
+                <span th:text="${succes}">Succès</span>
+            </div>
 
-            <form th:action="${membre.id == null} ? @{/admin/staff/add} : @{/admin/staff/edit/{id}(id=${membre.id})}" method="post" class="space-y-6">
+            <form th:action="@{/admin/mon-compte}" method="post" class="space-y-6">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 
                 <!-- Nom et Prénom -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Nom *</label>
-                        <input type="text" name="nom" th:value="${membre.nom}" placeholder="Dupont" required
+                        <input type="text" name="nom" th:value="${membre.nom}" required
                                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Prénom *</label>
-                        <input type="text" name="prenom" th:value="${membre.prenom}" placeholder="Jean" required
+                        <input type="text" name="prenom" th:value="${membre.prenom}" required
                                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                 </div>
@@ -54,46 +56,32 @@
                 <!-- Téléphone -->
                 <div>
                     <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Téléphone *</label>
-                    <input type="tel" name="telephone" th:value="${membre.telephone}" placeholder="+237 6 00 00 00 00" required
+                    <input type="tel" name="telephone" th:value="${membre.telephone}" required
                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
                 <!-- Email -->
                 <div>
                     <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Email</label>
-                    <input type="email" name="email" th:value="${membre.email}" placeholder="jean@nezafi.com"
+                    <input type="email" name="email" th:value="${membre.email}"
                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Facultatif — la connexion fonctionne aussi avec le téléphone.</p>
                 </div>
 
-                <!-- Rôle -->
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Rôle *</label>
-                    <select name="role" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
-                        <option value="">Sélectionner un rôle</option>
-                        <option value="ROLE_ADMIN" th:selected="${membre.role != null and membre.role.name() == 'ROLE_ADMIN'}">Administrateur</option>
-                        <option value="ROLE_SECRETARIAT" th:selected="${membre.role != null and membre.role.name() == 'ROLE_SECRETARIAT'}">Secrétariat</option>
-                        <option value="ROLE_COMPTABLE" th:selected="${membre.role != null and membre.role.name() == 'ROLE_COMPTABLE'}">Comptable</option>
-                    </select>
-                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Administrateur : accès complet. Secrétariat : création/modification sur emplacements, clients, contrats, échéances, paiements. Comptable : création/modification sur emplacements et clients, lecture seule sur contrats/échéances/paiements.</p>
-                </div>
-
                 <!-- Mot de passe -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                        <span th:text="${membre.id == null} ? 'Mot de passe *' : 'Nouveau mot de passe'">Mot de passe</span>
-                    </label>
-                    <input type="password" name="password" placeholder="8 caractères minimum" th:required="${membre.id == null}"
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Nouveau mot de passe</label>
+                    <input type="password" name="password" placeholder="8 caractères minimum"
                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
-                    <p th:if="${membre.id != null}" class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Laissez vide pour conserver le mot de passe actuel.</p>
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Laissez vide pour conserver le mot de passe actuel.</p>
                 </div>
 
                 <!-- Buttons -->
                 <div class="flex gap-4 pt-4">
                     <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
-                        <span th:text="${membre.id == null} ? 'Créer le compte' : 'Enregistrer'">Créer le compte</span>
+                        Enregistrer
                     </button>
-                    <a th:href="@{/admin/staff}" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
+                    <a th:href="@{/admin/dashboard}" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-slate-100 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
                         Annuler
                     </a>
                 </div>
