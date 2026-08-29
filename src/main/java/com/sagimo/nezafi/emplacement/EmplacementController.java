@@ -2,13 +2,29 @@ package com.sagimo.nezafi.emplacement;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
+/**
+ * API REST des emplacements. Corrige un trou de sécurité identifié à l'audit : ce contrôleur
+ * n'avait auparavant aucune restriction de rôle propre — contrairement à {@link com.sagimo.nezafi.contrat.ContratController}
+ * et {@link com.sagimo.nezafi.user.UserController} — si bien que n'importe quel utilisateur
+ * authentifié, y compris COMPTABLE ou LOCATAIRE, pouvait créer/modifier/supprimer un emplacement.
+ *
+ * Règles (cohérentes avec les routes Thymeleaf équivalentes d'AdminController) : ADMIN et
+ * SECRETARIAT ont l'accès complet. COMPTABLE est strictement lecture seule, sans aucune
+ * exception. LOCATAIRE ne peut lire que les emplacements DISPONIBLE (cohérent avec ce qu'il
+ * voit déjà côté portail /shops).
+ */
 @RestController
 @RequestMapping("/api/emplacements")
 public class EmplacementController {
+
+    private static final Set<String> ROLES_STAFF_LECTURE = Set.of("ROLE_ADMIN", "ROLE_SECRETARIAT", "ROLE_COMPTABLE");
 
     private final EmplacementRepository emplacementRepository;
 
@@ -16,25 +32,48 @@ public class EmplacementController {
         this.emplacementRepository = emplacementRepository;
     }
 
+    private boolean aUnRole(Authentication authentication, Set<String> roles) {
+        return authentication.getAuthorities().stream().anyMatch(a -> roles.contains(a.getAuthority()));
+    }
+
+    private boolean estStaffLecture(Authentication authentication) {
+        return aUnRole(authentication, ROLES_STAFF_LECTURE);
+    }
+
+    /** Staff (ADMIN/SECRETARIAT/COMPTABLE) : lit tout. LOCATAIRE (ou tout autre cas) : jamais
+     *  un emplacement qui ne serait pas DISPONIBLE. */
+    private boolean peutLire(Authentication authentication, Emplacement emplacement) {
+        return estStaffLecture(authentication) || emplacement.getStatut() == StatutEmplacement.DISPONIBLE;
+    }
+
     @GetMapping
-    public List<Emplacement> getAllEmplacements() {
-        return emplacementRepository.findAll();
+    public List<Emplacement> getAllEmplacements(Authentication authentication) {
+        if (estStaffLecture(authentication)) {
+            return emplacementRepository.findAll();
+        }
+        return emplacementRepository.findAll().stream()
+                .filter(e -> e.getStatut() == StatutEmplacement.DISPONIBLE)
+                .toList();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Emplacement> getEmplacementById(@PathVariable Long id) {
+    public ResponseEntity<Emplacement> getEmplacementById(@PathVariable Long id, Authentication authentication) {
         return emplacementRepository.findById(id)
-                .map(ResponseEntity::ok)
+                .map(emplacement -> peutLire(authentication, emplacement)
+                        ? ResponseEntity.ok(emplacement)
+                        : ResponseEntity.status(HttpStatus.FORBIDDEN).<Emplacement>build())
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT')")
     public ResponseEntity<Emplacement> createEmplacement(@RequestBody Emplacement emplacement) {
         Emplacement saved = emplacementRepository.save(emplacement);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT')")
     public ResponseEntity<Emplacement> updateEmplacement(@PathVariable Long id, @RequestBody Emplacement emplacement) {
         return emplacementRepository.findById(id)
                 .map(existing -> {
@@ -53,6 +92,7 @@ public class EmplacementController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT')")
     public ResponseEntity<Void> deleteEmplacement(@PathVariable Long id) {
         if (!emplacementRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
