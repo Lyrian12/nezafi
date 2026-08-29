@@ -4,6 +4,7 @@ import com.sagimo.nezafi.audit.JournalAudit;
 import com.sagimo.nezafi.audit.JournalAuditRepository;
 import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
+import com.sagimo.nezafi.contrat.ContratStatusService;
 import com.sagimo.nezafi.contrat.StatutContrat;
 import com.sagimo.nezafi.echeance.Echeance;
 import com.sagimo.nezafi.echeance.EcheanceRepository;
@@ -48,10 +49,10 @@ import java.util.Map;
  */
 @Controller
 @RequestMapping("/admin")
-// SECRETARIAT y accède aussi (occupation, alertes, aperçus utiles au quotidien) mais sans le
-// bloc "Journal d'audit" — masqué dans la vue, cf. le paramètre estAdmin ci-dessous. Pas
-// COMPTABLE : ce tableau de bord est explicitement hors de son périmètre.
-@PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT')")
+// SECRETARIAT et COMPTABLE y accèdent aussi (occupation, alertes, aperçus utiles au quotidien)
+// mais sans le bloc "Journal d'audit" — masqué dans la vue, cf. le paramètre estAdmin
+// ci-dessous, ni la tuile "Gestion du personnel", ni la liste des comptes du personnel.
+@PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')")
 public class AdminDashboardController {
 
     // Fenêtre du graphique d'encaissements : les 6 derniers mois glissants, mois courant inclus.
@@ -66,6 +67,7 @@ public class AdminDashboardController {
     private final AdminAlertService adminAlertService;
     private final EmplacementRepository emplacementRepository;
     private final ContratRepository contratRepository;
+    private final ContratStatusService contratStatusService;
     private final UserRepository userRepository;
     private final EcheanceRepository echeanceRepository;
     private final EcheanceStatusService echeanceStatusService;
@@ -73,12 +75,14 @@ public class AdminDashboardController {
     private final JournalAuditRepository journalAuditRepository;
 
     public AdminDashboardController(AdminAlertService adminAlertService, EmplacementRepository emplacementRepository,
-                                     ContratRepository contratRepository, UserRepository userRepository,
+                                     ContratRepository contratRepository, ContratStatusService contratStatusService,
+                                     UserRepository userRepository,
                                      EcheanceRepository echeanceRepository, EcheanceStatusService echeanceStatusService,
                                      PaiementRepository paiementRepository, JournalAuditRepository journalAuditRepository) {
         this.adminAlertService = adminAlertService;
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
+        this.contratStatusService = contratStatusService;
         this.userRepository = userRepository;
         this.echeanceRepository = echeanceRepository;
         this.echeanceStatusService = echeanceStatusService;
@@ -92,13 +96,20 @@ public class AdminDashboardController {
         boolean estAdmin = authentication.getAuthorities().stream()
                 .anyMatch(autorite -> autorite.getAuthority().equals("ROLE_ADMIN"));
         model.addAttribute("estAdmin", estAdmin);
+
+        // Rattrape en premier les emplacements dont le contrat a simplement expiré sans qu'on y
+        // touche (cf. ContratStatusService.rafraichirStatut), avant tout calcul d'alerte ou
+        // d'occupation ci-dessous — sinon l'alerte "orphelin" se déclencherait sur un état déjà
+        // corrigé une ligne plus bas, incohérence purement liée à l'ordre des appels.
+        List<Emplacement> allStores = emplacementRepository.findAll();
+        contratStatusService.rafraichirStatuts(allStores);
+
         // Alertes de cohérence (mêmes règles que l'ancien widget de /admin/stores)
         model.addAttribute("emplacementsOrphelins", adminAlertService.emplacementsNonDisponiblesSansContratActif());
         model.addAttribute("contratsEcartLoyer", adminAlertService.contratsAvecEcartLoyerSignificatif());
         model.addAttribute("echeancesExcedentaires", adminAlertService.echeancesAvecPaiementExcedentaire());
 
         // Occupation par palier (donut) — même calcul que l'ancien widget de /admin/stores.
-        List<Emplacement> allStores = emplacementRepository.findAll();
         List<PalierOccupancy> occupancyByPalier = Arrays.stream(Palier.values())
                 .map(p -> {
                     long total = allStores.stream().filter(b -> b.getPalier() == p).count();

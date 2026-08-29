@@ -53,8 +53,14 @@ public class AdminController {
     // Cette classe mélange des routes aux droits différents (lecture vs écriture, ADMIN seul
     // pour les suppressions) : plus de @PreAuthorize de classe unique, chaque méthode porte le
     // sien. Constantes pour éviter de répéter les mêmes expressions ~20 fois.
+    //
+    // COMPTABLE a un périmètre à deux vitesses : lecture seule sur contrats (EDITION_CONTRATS
+    // l'exclut), mais création/modification comme SECRETARIAT sur emplacements et clients
+    // (EDITION_EMPLACEMENTS_CLIENTS l'inclut — même liste de rôles que LECTURE_STAFF, nom
+    // différent pour que chaque annotation reste lisible à l'endroit où elle est posée).
     private static final String LECTURE_STAFF = "hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')";
-    private static final String EDITION_STAFF = "hasAnyRole('ADMIN','SECRETARIAT')";
+    private static final String EDITION_EMPLACEMENTS_CLIENTS = "hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')";
+    private static final String EDITION_CONTRATS = "hasAnyRole('ADMIN','SECRETARIAT')";
     private static final String ADMIN_SEUL = "hasRole('ADMIN')";
 
     private final EmplacementRepository emplacementRepository;
@@ -106,10 +112,31 @@ public class AdminController {
         return snapshot;
     }
 
+    /**
+     * Emplacements proposés dans le menu déroulant de création d'un contrat : uniquement
+     * DISPONIBLE (jamais ceux déjà occupés par un contrat actif) — après avoir rattrapé au
+     * passage les statuts éventuellement périmés (cf. ContratStatusService.rafraichirStatuts).
+     * Ne concerne QUE la création : le renouvellement (GET /admin/contracts/{id}/renew)
+     * pré-remplit déjà l'emplacement depuis l'ancien contrat et ne passe pas par ce menu ;
+     * l'édition doit elle continuer à montrer l'emplacement déjà assigné même s'il n'est plus
+     * DISPONIBLE (cf. rejectContractForm, appelé aussi bien depuis l'ajout que la modification).
+     */
+    private List<Emplacement> emplacementsDisponiblesPourCreation() {
+        List<Emplacement> tous = emplacementRepository.findAll();
+        contratStatusService.rafraichirStatuts(tous);
+        return tous.stream().filter(e -> e.getStatut() == StatutEmplacement.DISPONIBLE).toList();
+    }
+
     private String rejectContractForm(Model model, String error, Contrat contrat) {
+        return rejectContractForm(model, error, contrat, true);
+    }
+
+    private String rejectContractForm(Model model, String error, Contrat contrat, boolean disponiblesUniquement) {
         model.addAttribute("error", error);
         model.addAttribute("contrat", contrat);
-        model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("emplacements", disponiblesUniquement
+                ? emplacementsDisponiblesPourCreation()
+                : emplacementRepository.findAll());
         model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
     }
@@ -127,6 +154,9 @@ public class AdminController {
             @RequestParam(required = false) BigDecimal superficieMax,
             Model model) {
         List<Emplacement> allStores = emplacementRepository.findAll();
+        // Rattrape les emplacements dont le contrat a simplement expiré sans qu'on y touche
+        // (cf. ContratStatusService.rafraichirStatut) avant de filtrer/compter par statut.
+        contratStatusService.rafraichirStatuts(allStores);
 
         List<Emplacement> filteredStores = allStores.stream()
                 .filter(e -> palier == null || e.getPalier() == palier)
@@ -175,6 +205,7 @@ public class AdminController {
     public String storeDetail(@PathVariable Long id, Model model) {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
+        contratStatusService.rafraichirStatut(emplacement);
 
         List<Contrat> contrats = contratRepository.findByEmplacementId(id);
         contrats.sort(Comparator.comparing(Contrat::getDateDebut).reversed());
@@ -188,7 +219,7 @@ public class AdminController {
     }
 
     @PostMapping("/stores/{id}/photos")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String ajouterPhoto(@PathVariable Long id, @RequestParam MultipartFile photo,
                                 RedirectAttributes redirectAttributes) throws IOException {
         emplacementRepository.findById(id)
@@ -209,14 +240,14 @@ public class AdminController {
     }
 
     @GetMapping("/stores/add")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String addStorePage(Model model) {
         model.addAttribute("emplacement", new Emplacement());
         return "admin-store-form";
     }
 
     @PostMapping("/stores/add")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String addStore(
             @RequestParam String name,
             @RequestParam(required = false) MultipartFile image,
@@ -247,7 +278,7 @@ public class AdminController {
     }
 
     @GetMapping("/stores/edit/{id}")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String editStorePage(@PathVariable Long id, Model model) {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -256,7 +287,7 @@ public class AdminController {
     }
 
     @PostMapping("/stores/edit/{id}")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String editStore(
             @PathVariable Long id,
             @RequestParam String name,
@@ -339,16 +370,16 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/add")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_CONTRATS)
     public String addContractPage(Model model) {
         model.addAttribute("contrat", new Contrat());
-        model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("emplacements", emplacementsDisponiblesPourCreation());
         model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
     }
 
     @PostMapping("/contracts/add")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_CONTRATS)
     public String addContract(
             @RequestParam Long emplacementId,
             @RequestParam Long locataireId,
@@ -478,7 +509,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/edit/{id}")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_CONTRATS)
     public String editContractPage(@PathVariable Long id, Model model) {
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
@@ -489,7 +520,7 @@ public class AdminController {
     }
 
     @PostMapping("/contracts/edit/{id}")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_CONTRATS)
     public String editContract(
             @PathVariable Long id,
             @RequestParam Long emplacementId,
@@ -522,13 +553,13 @@ public class AdminController {
         LocalDate dateDebutParsed = LocalDate.parse(dateDebut);
         LocalDate dateFinParsed = LocalDate.parse(dateFin);
         if (dateDebutParsed.isAfter(dateFinParsed)) {
-            return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.", contrat);
+            return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.", contrat, false);
         }
 
         StatutContrat statutEnum = StatutContrat.valueOf(statut);
         if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacementId, contrat.getId())) {
             return rejectContractForm(model,
-                    "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.", contrat);
+                    "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.", contrat, false);
         }
 
         // Le statut RESILIER n'est jamais soumis par le <select> du formulaire générique
@@ -545,7 +576,7 @@ public class AdminController {
         List<Echeance> echeances = new ArrayList<>();
         String erreurEcheances = construireEcheances(periodeCandidate, echeanceDates, echeanceMontants, echeanceTypes, echeances);
         if (erreurEcheances != null) {
-            return rejectContractForm(model, erreurEcheances, contrat);
+            return rejectContractForm(model, erreurEcheances, contrat, false);
         }
 
         contrat.setEmplacement(emplacement);
@@ -630,7 +661,7 @@ public class AdminController {
     }
 
     @PostMapping("/contracts/{id}/resilier")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_CONTRATS)
     public String resilierContract(
             @PathVariable Long id,
             @RequestParam String motif,
@@ -663,7 +694,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/{id}/renew")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_CONTRATS)
     public String renewContractPage(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         Contrat ancien = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
@@ -699,7 +730,7 @@ public class AdminController {
 
     // Client Management
     @GetMapping("/clients")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String clientsPage(@RequestParam(required = false) String search,
                                @RequestParam(required = false) String contratActif, Model model) {
         List<User> clients = (search == null || search.isBlank())
@@ -725,14 +756,14 @@ public class AdminController {
     }
 
     @GetMapping("/clients/add")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String addClientPage(Model model) {
         model.addAttribute("client", new User());
         return "admin-client-form";
     }
 
     @PostMapping("/clients/add")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String addClient(
             @RequestParam String nom,
             @RequestParam String prenom,
@@ -790,7 +821,7 @@ public class AdminController {
     }
 
     @GetMapping("/clients/{id}")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(EDITION_EMPLACEMENTS_CLIENTS)
     public String clientDetail(@PathVariable Long id, Model model) {
         User client = userRepository.findById(id)
                 .filter(u -> u.getRole() == Role.ROLE_LOCATAIRE)

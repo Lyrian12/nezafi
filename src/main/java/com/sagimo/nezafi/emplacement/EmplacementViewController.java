@@ -1,5 +1,6 @@
 package com.sagimo.nezafi.emplacement;
 
+import com.sagimo.nezafi.contrat.ContratStatusService;
 import com.sagimo.nezafi.storage.DocumentJointService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -16,10 +17,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class EmplacementViewController {
 
     private final EmplacementRepository emplacementRepository;
+    private final ContratStatusService contratStatusService;
     private final DocumentJointService documentJointService;
 
-    public EmplacementViewController(EmplacementRepository emplacementRepository, DocumentJointService documentJointService) {
+    public EmplacementViewController(EmplacementRepository emplacementRepository,
+                                      ContratStatusService contratStatusService,
+                                      DocumentJointService documentJointService) {
         this.emplacementRepository = emplacementRepository;
+        this.contratStatusService = contratStatusService;
         this.documentJointService = documentJointService;
     }
 
@@ -27,6 +32,7 @@ public class EmplacementViewController {
     public String viewEmplacement(@PathVariable Long id, Model model) {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Emplacement not found"));
+        contratStatusService.rafraichirStatut(emplacement);
         model.addAttribute("shop", emplacement);
         model.addAttribute("photos", documentJointService.lister("Emplacement", id));
         return "emplacement-detail";
