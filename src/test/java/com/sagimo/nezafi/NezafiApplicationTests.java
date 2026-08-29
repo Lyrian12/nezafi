@@ -35,7 +35,8 @@ class NezafiApplicationTests {
         String email = "tenant-login-test@nezafi.com";
         if (userRepository.findByEmail(email).isEmpty()) {
             User user = new User();
-            user.setName("Test Tenant");
+            user.setNom("Tenant");
+            user.setPrenom("Test");
             user.setTelephone("+212600000001");
             user.setEmail(email);
             user.setPassword(passwordEncoder.encode("password123"));
@@ -54,6 +55,6 @@ class NezafiApplicationTests {
                         .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user(email)
                                 .roles("LOCATAIRE")))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Vos Boutiques")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Vos Emplacements")));
     }
 }

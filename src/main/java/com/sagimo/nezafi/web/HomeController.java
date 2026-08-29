@@ -38,13 +38,12 @@ public class HomeController {
         String role = user.getRole().name();
 
         if (role.equals("ROLE_ADMIN")) {
-            return "redirect:/admin/stores";
+            return "redirect:/admin/dashboard";
         }
 
         // ROLE_LOCATAIRE - User dashboard
         model.addAttribute("username", user.getPrenom() + " " + user.getNom());
         model.addAttribute("shops", emplacementRepository.findAll());
-        model.addAttribute("pendingRequestsCount", 0);
 
         return "emplacements";
     }
