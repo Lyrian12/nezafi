@@ -16,7 +16,7 @@ import com.sagimo.nezafi.echeance.EcheanceRepository;
 import com.sagimo.nezafi.echeance.EcheanceStatusService;
 import com.sagimo.nezafi.echeance.StatutEcheance;
 import com.sagimo.nezafi.echeance.TypeEcheance;
-import com.sagimo.nezafi.storage.FileStorageService;
+import com.sagimo.nezafi.storage.DocumentJointService;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
@@ -60,13 +60,13 @@ public class AdminController {
     private final EcheanceStatusService echeanceStatusService;
     private final AuditService auditService;
     private final AdminAlertService adminAlertService;
-    private final FileStorageService fileStorageService;
+    private final DocumentJointService documentJointService;
 
     public AdminController(EmplacementRepository emplacementRepository, ContratRepository contratRepository,
                             UserRepository userRepository, PasswordEncoder passwordEncoder,
                             ContratStatusService contratStatusService, EcheanceRepository echeanceRepository,
                             EcheanceStatusService echeanceStatusService, AuditService auditService,
-                            AdminAlertService adminAlertService, FileStorageService fileStorageService) {
+                            AdminAlertService adminAlertService, DocumentJointService documentJointService) {
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
@@ -76,7 +76,7 @@ public class AdminController {
         this.echeanceStatusService = echeanceStatusService;
         this.auditService = auditService;
         this.adminAlertService = adminAlertService;
-        this.fileStorageService = fileStorageService;
+        this.documentJointService = documentJointService;
     }
 
     /** Résout l'admin actuellement connecté, pour attribuer les entrées du journal d'audit. */
@@ -175,7 +175,28 @@ public class AdminController {
         model.addAttribute("contrats", contrats);
         model.addAttribute("estOrpheline", emplacement.getStatut() == StatutEmplacement.NON_DISPONIBLE
                 && adminAlertService.sansContratActif(emplacement));
+        model.addAttribute("photos", documentJointService.lister("Emplacement", id));
         return "admin-store-detail";
+    }
+
+    @PostMapping("/stores/{id}/photos")
+    public String ajouterPhoto(@PathVariable Long id, @RequestParam MultipartFile photo,
+                                RedirectAttributes redirectAttributes) throws IOException {
+        emplacementRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Store not found"));
+
+        if (photo.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Aucune photo sélectionnée.");
+            return "redirect:/admin/stores/" + id;
+        }
+        String type = photo.getContentType();
+        if (type == null || !type.startsWith("image/")) {
+            redirectAttributes.addFlashAttribute("error", "Le fichier doit être une image.");
+            return "redirect:/admin/stores/" + id;
+        }
+
+        documentJointService.attacher("Emplacement", id, photo, "emplacements");
+        return "redirect:/admin/stores/" + id;
     }
 
     @GetMapping("/stores/add")
@@ -187,7 +208,7 @@ public class AdminController {
     @PostMapping("/stores/add")
     public String addStore(
             @RequestParam String name,
-            @RequestParam MultipartFile image,
+            @RequestParam(required = false) MultipartFile image,
             @RequestParam(defaultValue = "DISPONIBLE") String statut,
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
@@ -196,7 +217,6 @@ public class AdminController {
 
         Emplacement emplacement = new Emplacement();
         emplacement.setName(name);
-        emplacement.setImageUrl("/files/" + fileStorageService.enregistrer(image, "emplacements"));
         emplacement.setStatut(StatutEmplacement.valueOf(statut));
         emplacement.setPalier(Palier.valueOf(palier));
         emplacement.setSuperficie(superficie);
@@ -205,6 +225,13 @@ public class AdminController {
         emplacement.setAddedAt(LocalDateTime.now());
 
         emplacementRepository.save(emplacement);
+
+        // Photo facultative à la création : l'admin peut aussi n'en ajouter aucune ici et
+        // compléter la galerie plus tard depuis la fiche détail (cf. /stores/{id}/photos).
+        if (image != null && !image.isEmpty()) {
+            documentJointService.attacher("Emplacement", emplacement.getId(), image, "emplacements");
+        }
+
         return "redirect:/admin/stores";
     }
 
@@ -220,13 +247,12 @@ public class AdminController {
     public String editStore(
             @PathVariable Long id,
             @RequestParam String name,
-            @RequestParam(required = false) MultipartFile image,
             @RequestParam String statut,
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
             @RequestParam BigDecimal prix,
             @RequestParam String categorie,
-            Authentication authentication) throws IOException {
+            Authentication authentication) {
 
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -234,11 +260,6 @@ public class AdminController {
         BigDecimal ancienPrix = emplacement.getPrix();
 
         emplacement.setName(name);
-        // Le champ photo est facultatif à l'édition : on ne remplace le fichier stocké que si
-        // l'admin en a choisi un nouveau, sinon la photo actuelle reste inchangée.
-        if (image != null && !image.isEmpty()) {
-            emplacement.setImageUrl("/files/" + fileStorageService.enregistrer(image, "emplacements"));
-        }
         emplacement.setStatut(StatutEmplacement.valueOf(statut));
         emplacement.setPalier(Palier.valueOf(palier));
         emplacement.setSuperficie(superficie);

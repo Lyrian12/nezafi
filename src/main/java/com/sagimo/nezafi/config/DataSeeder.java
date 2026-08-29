@@ -161,7 +161,8 @@ public class DataSeeder implements CommandLineRunner {
                                           String superficie, String prix, StatutEmplacement statut) {
         Emplacement emplacement = new Emplacement();
         emplacement.setName(name);
-        emplacement.setImageUrl("https://images.unsplash.com/photo-1521572267360-ee0c2909d518");
+        // Pas de photo au seeding : les emplacements de démo montrent volontairement l'état
+        // "Aucune photo" de la fiche détail (cf. AdminController / admin-store-detail.html).
         emplacement.setStatut(statut);
         emplacement.setPalier(palier);
         emplacement.setSuperficie(new BigDecimal(superficie));

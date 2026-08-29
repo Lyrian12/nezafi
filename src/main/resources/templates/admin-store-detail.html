@@ -35,6 +35,41 @@
         <span class="w-4 h-4 shrink-0" th:insert="~{fragments/icons :: alertTriangle}"></span>
         Cet emplacement est marqué NON_DISPONIBLE mais aucun contrat validé n'y est rattaché — à vérifier.
     </div>
+    <div th:if="${error}" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6" th:text="${error}">Erreur</div>
+
+    <!-- Photos -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Photos</h2>
+
+        <div th:if="${#lists.isEmpty(photos)}" class="text-center py-8">
+            <p class="text-sm text-slate-400 dark:text-slate-500 mb-4">Aucune photo</p>
+            <form th:action="@{/admin/stores/{id}/photos(id=${emplacement.id})}" method="post" enctype="multipart/form-data" class="inline-flex items-center gap-2">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="file" name="photo" accept="image/*" required
+                       class="text-xs text-slate-600 dark:text-slate-300 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-white dark:file:bg-slate-700">
+                <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-1.5 px-3 rounded-xl transition-colors text-[11px] whitespace-nowrap">
+                    Ajouter une photo
+                </button>
+            </form>
+        </div>
+
+        <div th:if="${not #lists.isEmpty(photos)}">
+            <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mb-4">
+                <a th:each="photo : ${photos}" th:href="@{/files/documents/{id}(id=${photo.id})}" target="_blank"
+                   class="block aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:opacity-80 transition-opacity">
+                    <img th:src="@{/files/documents/{id}(id=${photo.id})}" alt="Photo de l'emplacement" class="w-full h-full object-cover">
+                </a>
+            </div>
+            <form th:action="@{/admin/stores/{id}/photos(id=${emplacement.id})}" method="post" enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <input type="file" name="photo" accept="image/*" required
+                       class="text-xs text-slate-600 dark:text-slate-300 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-white dark:file:bg-slate-700">
+                <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-1.5 px-3 rounded-xl transition-colors text-[11px] whitespace-nowrap">
+                    Ajouter
+                </button>
+            </form>
+        </div>
+    </div>
 
     <!-- Main Content Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">

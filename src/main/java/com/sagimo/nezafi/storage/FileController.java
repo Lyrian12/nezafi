@@ -13,26 +13,33 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Sert les photos d'emplacements uploadées (cf. {@link FileStorageService}). Accessible à tout
- * utilisateur authentifié (admin ou locataire) via la règle {@code anyRequest().authenticated()}
- * de {@link com.sagimo.nezafi.config.SecurityConfig} : ces photos sont affichées aussi bien côté
- * admin que côté locataire. Les factures de contrat, elles, restent servies depuis
- * {@code com.sagimo.nezafi.admin.AdminController} (sous {@code /admin/**}, donc déjà réservées
- * aux admins).
+ * Sert les documents joints "publics" (au sens : visibles par tout utilisateur authentifié,
+ * pas réservés aux admins) — en pratique aujourd'hui, uniquement les photos d'emplacement,
+ * affichées aussi bien côté admin que côté locataire. Un document attaché à une autre entité
+ * (ex. "Contrat", la facture de paiement) n'est jamais servi ici : il reste téléchargeable
+ * uniquement depuis les routes {@code /admin/**}, déjà réservées aux admins par
+ * {@link com.sagimo.nezafi.config.SecurityConfig}.
  */
 @RestController
-@RequestMapping("/files/emplacements")
+@RequestMapping("/files/documents")
 public class FileController {
 
-    private final FileStorageService fileStorageService;
+    private static final String ENTITE_PUBLIQUE = "Emplacement";
 
-    public FileController(FileStorageService fileStorageService) {
-        this.fileStorageService = fileStorageService;
+    private final DocumentJointService documentJointService;
+
+    public FileController(DocumentJointService documentJointService) {
+        this.documentJointService = documentJointService;
     }
 
-    @GetMapping("/{nomFichier:.+}")
-    public ResponseEntity<Resource> image(@PathVariable String nomFichier) {
-        Resource ressource = fileStorageService.charger("emplacements/" + nomFichier);
+    @GetMapping("/{id}")
+    public ResponseEntity<Resource> voir(@PathVariable Long id) {
+        DocumentJoint document = documentJointService.trouver(id);
+        if (!ENTITE_PUBLIQUE.equals(document.getNomEntite())) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Resource ressource = documentJointService.charger(document);
         MediaType type = MediaTypeFactory.getMediaType(ressource).orElse(MediaType.APPLICATION_OCTET_STREAM);
         return ResponseEntity.ok()
                 .contentType(type)

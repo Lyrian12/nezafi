@@ -25,7 +25,9 @@ public class Emplacement {
     @Column(nullable = false)
     private String name;
 
-    private String imageUrl;
+    // Les photos vivent désormais dans com.sagimo.nezafi.storage.DocumentJoint
+    // (nomEntite="Emplacement", entiteId=this.id) — plusieurs photos possibles, cf.
+    // DocumentJointService.lister(...) / .premier(...) pour la vignette de couverture.
 
     @Column(nullable = false)
     private LocalDateTime addedAt = LocalDateTime.now();

@@ -63,7 +63,11 @@
 
                 <!-- Image en aside, étirée sur toute la hauteur de la carte quel que soit son format -->
                 <div class="w-32 sm:w-40 shrink-0 self-stretch relative bg-slate-100">
-                    <img th:src="${shop.imageUrl}" alt="Image de l'emplacement" class="absolute inset-0 w-full h-full object-cover">
+                    <img th:if="${couvertureParEmplacementId.get(shop.id) != null}" th:src="${couvertureParEmplacementId.get(shop.id)}"
+                         alt="Image de l'emplacement" class="absolute inset-0 w-full h-full object-cover">
+                    <div th:if="${couvertureParEmplacementId.get(shop.id) == null}" class="absolute inset-0 flex items-center justify-center text-slate-300 text-[10px] font-semibold">
+                        Aucune photo
+                    </div>
                 </div>
 
                 <!-- Informations -->

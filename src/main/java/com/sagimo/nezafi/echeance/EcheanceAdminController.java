@@ -7,7 +7,8 @@ import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
 import com.sagimo.nezafi.paiement.Paiement;
 import com.sagimo.nezafi.paiement.PaiementRepository;
-import com.sagimo.nezafi.storage.FileStorageService;
+import com.sagimo.nezafi.storage.DocumentJoint;
+import com.sagimo.nezafi.storage.DocumentJointService;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,6 +37,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Vues et actions admin pour les échéances et paiements. Volontairement séparé
@@ -54,12 +56,12 @@ public class EcheanceAdminController {
     private final EcheanceStatusService echeanceStatusService;
     private final AuditService auditService;
     private final AdminAlertService adminAlertService;
-    private final FileStorageService fileStorageService;
+    private final DocumentJointService documentJointService;
 
     public EcheanceAdminController(EcheanceRepository echeanceRepository, PaiementRepository paiementRepository,
                                     ContratRepository contratRepository, UserRepository userRepository,
                                     EcheanceStatusService echeanceStatusService, AuditService auditService,
-                                    AdminAlertService adminAlertService, FileStorageService fileStorageService) {
+                                    AdminAlertService adminAlertService, DocumentJointService documentJointService) {
         this.echeanceRepository = echeanceRepository;
         this.paiementRepository = paiementRepository;
         this.contratRepository = contratRepository;
@@ -67,7 +69,7 @@ public class EcheanceAdminController {
         this.echeanceStatusService = echeanceStatusService;
         this.auditService = auditService;
         this.adminAlertService = adminAlertService;
-        this.fileStorageService = fileStorageService;
+        this.documentJointService = documentJointService;
     }
 
     private User currentAdmin(Authentication authentication) {
@@ -101,9 +103,8 @@ public class EcheanceAdminController {
         // Alerte non bloquante, contextuelle à cette fiche : écart significatif entre le
         // total des échéances LOYER et le montantLoyer déclaré sur le contrat.
         model.addAttribute("ecartLoyerSignificatif", adminAlertService.ecartLoyerSignificatif(contrat));
-        if (contrat.getFactureCheminStockage() != null) {
-            model.addAttribute("factureNomAffiche", fileStorageService.nomOriginal(contrat.getFactureCheminStockage()));
-        }
+        documentJointService.premier("Contrat", id)
+                .ifPresent(facture -> model.addAttribute("factureNomAffiche", documentJointService.nomOriginal(facture)));
         return "admin-contract-detail";
     }
 
@@ -111,7 +112,7 @@ public class EcheanceAdminController {
     public String uploaderFacturePaiement(@PathVariable Long id, @RequestParam MultipartFile facture,
                                            Authentication authentication, RedirectAttributes redirectAttributes)
             throws IOException {
-        Contrat contrat = contratRepository.findById(id)
+        contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
 
         if (facture.isEmpty()) {
@@ -125,29 +126,26 @@ public class EcheanceAdminController {
             return "redirect:/admin/contracts/" + id;
         }
 
-        boolean remplacement = contrat.getFactureCheminStockage() != null;
-        contrat.setFactureCheminStockage(fileStorageService.enregistrer(facture, "contrats"));
-        contratRepository.save(contrat);
+        boolean remplacement = !documentJointService.lister("Contrat", id).isEmpty();
+        DocumentJoint document = documentJointService.remplacerUnique("Contrat", id, facture, "contrats");
 
         User admin = currentAdmin(authentication);
         auditService.enregistrer(admin, remplacement ? TypeActionAudit.MODIFICATION : TypeActionAudit.CREATION,
-                "FactureContrat", contrat.getId(), null,
-                Map.of("fichier", fileStorageService.nomOriginal(contrat.getFactureCheminStockage())));
+                "FactureContrat", id, null, Map.of("fichier", documentJointService.nomOriginal(document)));
 
         return "redirect:/admin/contracts/" + id;
     }
 
     @GetMapping("/contracts/{id}/facture")
     public void telechargerFacturePaiement(@PathVariable Long id, HttpServletResponse response) throws IOException {
-        Contrat contrat = contratRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Contract not found"));
-        if (contrat.getFactureCheminStockage() == null) {
+        Optional<DocumentJoint> facture = documentJointService.premier("Contrat", id);
+        if (facture.isEmpty()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
 
-        Resource ressource = fileStorageService.charger(contrat.getFactureCheminStockage());
-        String nomAffiche = fileStorageService.nomOriginal(contrat.getFactureCheminStockage());
+        Resource ressource = documentJointService.charger(facture.get());
+        String nomAffiche = documentJointService.nomOriginal(facture.get());
         MediaType type = MediaTypeFactory.getMediaType(ressource).orElse(MediaType.APPLICATION_OCTET_STREAM);
 
         response.setContentType(type.toString());

@@ -34,9 +34,9 @@ public class Paiement {
     @Column(nullable = false)
     private LocalDate datePaiement;
 
-    // Chemin/URL du scan ou de la photo du reçu. Même logique que Emplacement.imageUrl :
-    // un simple champ texte, pas un vrai upload multipart (aucune infrastructure d'upload
-    // de fichiers n'existe encore dans le projet).
+    // Chemin/URL du scan ou de la photo du reçu — encore un simple champ texte pour l'instant,
+    // pas migré vers com.sagimo.nezafi.storage.DocumentJoint (utilisé lui pour les photos
+    // d'emplacement et la facture de contrat).
     private String cheminRecu;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
