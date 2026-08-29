@@ -7,8 +7,13 @@ import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
 import com.sagimo.nezafi.paiement.Paiement;
 import com.sagimo.nezafi.paiement.PaiementRepository;
+import com.sagimo.nezafi.storage.FileStorageService;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -18,9 +23,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -45,11 +54,12 @@ public class EcheanceAdminController {
     private final EcheanceStatusService echeanceStatusService;
     private final AuditService auditService;
     private final AdminAlertService adminAlertService;
+    private final FileStorageService fileStorageService;
 
     public EcheanceAdminController(EcheanceRepository echeanceRepository, PaiementRepository paiementRepository,
                                     ContratRepository contratRepository, UserRepository userRepository,
                                     EcheanceStatusService echeanceStatusService, AuditService auditService,
-                                    AdminAlertService adminAlertService) {
+                                    AdminAlertService adminAlertService, FileStorageService fileStorageService) {
         this.echeanceRepository = echeanceRepository;
         this.paiementRepository = paiementRepository;
         this.contratRepository = contratRepository;
@@ -57,6 +67,14 @@ public class EcheanceAdminController {
         this.echeanceStatusService = echeanceStatusService;
         this.auditService = auditService;
         this.adminAlertService = adminAlertService;
+        this.fileStorageService = fileStorageService;
+    }
+
+    private User currentAdmin(Authentication authentication) {
+        String identifier = authentication.getName();
+        return userRepository.findByEmail(identifier)
+                .or(() -> userRepository.findByTelephone(identifier))
+                .orElseThrow(() -> new RuntimeException("Admin not found"));
     }
 
     @GetMapping("/contracts/{id}")
@@ -83,7 +101,59 @@ public class EcheanceAdminController {
         // Alerte non bloquante, contextuelle à cette fiche : écart significatif entre le
         // total des échéances LOYER et le montantLoyer déclaré sur le contrat.
         model.addAttribute("ecartLoyerSignificatif", adminAlertService.ecartLoyerSignificatif(contrat));
+        if (contrat.getFactureCheminStockage() != null) {
+            model.addAttribute("factureNomAffiche", fileStorageService.nomOriginal(contrat.getFactureCheminStockage()));
+        }
         return "admin-contract-detail";
+    }
+
+    @PostMapping("/contracts/{id}/facture")
+    public String uploaderFacturePaiement(@PathVariable Long id, @RequestParam MultipartFile facture,
+                                           Authentication authentication, RedirectAttributes redirectAttributes)
+            throws IOException {
+        Contrat contrat = contratRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Contract not found"));
+
+        if (facture.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Aucun fichier sélectionné.");
+            return "redirect:/admin/contracts/" + id;
+        }
+        String type = facture.getContentType();
+        boolean typeAccepte = type != null && (type.equals(MediaType.APPLICATION_PDF_VALUE) || type.startsWith("image/"));
+        if (!typeAccepte) {
+            redirectAttributes.addFlashAttribute("error", "La facture doit être un PDF ou une image.");
+            return "redirect:/admin/contracts/" + id;
+        }
+
+        boolean remplacement = contrat.getFactureCheminStockage() != null;
+        contrat.setFactureCheminStockage(fileStorageService.enregistrer(facture, "contrats"));
+        contratRepository.save(contrat);
+
+        User admin = currentAdmin(authentication);
+        auditService.enregistrer(admin, remplacement ? TypeActionAudit.MODIFICATION : TypeActionAudit.CREATION,
+                "FactureContrat", contrat.getId(), null,
+                Map.of("fichier", fileStorageService.nomOriginal(contrat.getFactureCheminStockage())));
+
+        return "redirect:/admin/contracts/" + id;
+    }
+
+    @GetMapping("/contracts/{id}/facture")
+    public void telechargerFacturePaiement(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        Contrat contrat = contratRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Contract not found"));
+        if (contrat.getFactureCheminStockage() == null) {
+            response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+
+        Resource ressource = fileStorageService.charger(contrat.getFactureCheminStockage());
+        String nomAffiche = fileStorageService.nomOriginal(contrat.getFactureCheminStockage());
+        MediaType type = MediaTypeFactory.getMediaType(ressource).orElse(MediaType.APPLICATION_OCTET_STREAM);
+
+        response.setContentType(type.toString());
+        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''"
+                + URLEncoder.encode(nomAffiche, StandardCharsets.UTF_8).replace("+", "%20"));
+        response.getOutputStream().write(ressource.getContentAsByteArray());
     }
 
     @PostMapping("/echeances/{id}/paiements")

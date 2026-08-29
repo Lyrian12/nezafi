@@ -81,6 +81,11 @@ public class Contrat {
 
     private LocalDate datePreavis;
 
+    // Un seul document pour l'instant (chemin relatif vers com.sagimo.nezafi.storage.
+    // FileStorageService, PDF ou image) : base simple pour une gestion documentaire plus
+    // complète plus tard, pas de types de documents multiples pour cette première version.
+    private String factureCheminStockage;
+
     // Renouvellement : un contrat renouvelé n'est jamais modifié en place, il donne
     // naissance à un nouveau Contrat qui pointe vers lui via ce champ.
     @ManyToOne(fetch = FetchType.LAZY)
