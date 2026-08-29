@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Détails de l'emplacement - NEZAFI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Manrope', 'ui-sans-serif', 'system-ui', 'sans-serif'] } } } };
+    </script>
 </head>
 <body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex flex-col">
 
@@ -17,12 +23,16 @@
     </div>
 
     <!-- Navigation et Sign out -->
-    <div class="flex items-center space-x-6">
-        <a href="/dashboard" class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Retour au tableau de bord</a>
+    <div class="flex items-center space-x-2">
+        <a href="/dashboard" class="w-9 h-9 flex items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+           title="Retour au tableau de bord" aria-label="Retour au tableau de bord">
+            <span class="w-5 h-5" th:insert="~{fragments/icons :: arrowLeft}"></span>
+        </a>
         <form th:action="@{/logout}" method="post" class="inline">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-            <button type="submit" class="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-                Déconnexion
+            <button type="submit" class="w-9 h-9 flex items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                    title="Déconnexion" aria-label="Déconnexion">
+                <span class="w-5 h-5" th:insert="~{fragments/icons :: logout}"></span>
             </button>
         </form>
     </div>
@@ -35,7 +45,6 @@
     <div class="mb-8">
         <a href="/dashboard" class="text-xs text-slate-400 font-medium hover:text-slate-600">← Retour aux emplacements</a>
         <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mt-4" th:text="${shop.name}">Nom de l'emplacement</h1>
-        <p class="text-xs text-slate-500 mt-1" th:text="'ID: ' + ${shop.id}">ID: 1</p>
     </div>
 
     <!-- Main Content Grid -->

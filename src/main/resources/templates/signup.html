@@ -4,7 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Créer un compte - NEZAFI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Manrope', 'ui-sans-serif', 'system-ui', 'sans-serif'] } } } };
+    </script>
 </head>
 <body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex items-center justify-center p-6">
 
@@ -27,12 +33,20 @@
 
     <!-- Formulaire d'inscription -->
     <form th:action="@{/signup}" method="post" class="space-y-5">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 
-        <!-- Nom complet -->
-        <div>
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Full Name</label>
-            <input type="text" name="name" placeholder="John Doe" required
-                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+        <!-- Nom et Prénom -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nom</label>
+                <input type="text" name="nom" th:value="${user?.nom}" placeholder="Doe" required
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Prénom</label>
+                <input type="text" name="prenom" th:value="${user?.prenom}" placeholder="John" required
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+            </div>
         </div>
 
         <!-- Email -->
