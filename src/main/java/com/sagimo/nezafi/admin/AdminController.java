@@ -98,9 +98,31 @@ public class AdminController {
     private String rejectContractForm(Model model, String error, Contrat contrat) {
         model.addAttribute("error", error);
         model.addAttribute("contrat", contrat);
-        model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("emplacements", emplacementsPourFormulaire(contrat.getEmplacement()));
         model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
+    }
+
+    /**
+     * Emplacements proposables dans le menu déroulant du formulaire de contrat : uniquement
+     * ceux DISPONIBLE (une boutique déjà NON_DISPONIBLE ne doit pas pouvoir être choisie pour
+     * un nouveau contrat), plus l'emplacement actuellement lié au contrat en cours d'édition
+     * s'il n'est pas DISPONIBLE lui-même — sinon il disparaîtrait du menu et une simple
+     * modification sans changer de boutique casserait la sélection. {@code emplacementActuel}
+     * vaut {@code null} pour un nouveau contrat (aucun ajout nécessaire).
+     */
+    private List<Emplacement> emplacementsPourFormulaire(Emplacement emplacementActuel) {
+        List<Emplacement> disponibles = emplacementRepository.findByStatut(StatutEmplacement.DISPONIBLE);
+        boolean actuelDejaAbsent = emplacementActuel != null
+                && emplacementActuel.getStatut() != StatutEmplacement.DISPONIBLE
+                && disponibles.stream().noneMatch(e -> e.getId().equals(emplacementActuel.getId()));
+        if (!actuelDejaAbsent) {
+            return disponibles;
+        }
+        List<Emplacement> avecActuel = new ArrayList<>(disponibles);
+        avecActuel.add(emplacementActuel);
+        avecActuel.sort(Comparator.comparing(Emplacement::getName));
+        return avecActuel;
     }
 
     // Store Management
@@ -293,7 +315,7 @@ public class AdminController {
     @GetMapping("/contracts/add")
     public String addContractPage(Model model) {
         model.addAttribute("contrat", new Contrat());
-        model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("emplacements", emplacementsPourFormulaire(null));
         model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
     }
@@ -432,7 +454,7 @@ public class AdminController {
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
         model.addAttribute("contrat", contrat);
-        model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("emplacements", emplacementsPourFormulaire(contrat.getEmplacement()));
         model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
     }
