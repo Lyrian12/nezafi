@@ -28,7 +28,7 @@
             <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mb-1">Gestion des clients</h1>
             <p class="text-xs text-slate-500 dark:text-slate-400">Vue d'ensemble et gestion de tous les clients locataires.</p>
         </div>
-        <a th:href="@{/admin/clients/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
+        <a th:if="${peutModifier}" th:href="@{/admin/clients/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
             + Ajouter un client
         </a>
     </div>

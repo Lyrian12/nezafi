@@ -34,11 +34,9 @@ public class RoleModelAdvice {
         model.addAttribute("estAdmin", estAdmin);
         model.addAttribute("estSecretariat", estSecretariat);
         model.addAttribute("estComptable", estComptable);
-        // Peut créer/modifier un contrat, une échéance ou un paiement (pas les suppressions,
-        // réservées à ADMIN seul) — COMPTABLE en est exclu, lecture seule sur ce périmètre.
+        // Peut créer/modifier (pas les suppressions, réservées à ADMIN seul) — COMPTABLE est
+        // strictement lecture seule partout, sans aucune exception (retiré des emplacements et
+        // clients où il avait un temps été inclus).
         model.addAttribute("peutModifier", estAdmin || estSecretariat);
-        // Peut créer/modifier un emplacement ou un client — COMPTABLE est inclus ici (périmètre
-        // élargi contrairement à peutModifier ci-dessus), toujours pas les suppressions.
-        model.addAttribute("peutModifierEmplacementsClients", estAdmin || estSecretariat || estComptable);
     }
 }
