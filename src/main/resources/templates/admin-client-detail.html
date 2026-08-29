@@ -4,25 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Détail client</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <th:block th:replace="~{fragments/theme :: head}"></th:block>
 </head>
-<body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
 
-<div th:replace="~{fragments/admin-nav :: sidebar(active='clients')}"></div>
+<div th:replace="~{fragments/admin-nav :: logoutDock}"></div>
 
 <!-- CONTENU PRINCIPAL -->
-<main class="ml-64 flex-grow p-10">
-
+<main class="max-w-5xl mx-auto p-6 md:p-10 my-6 md:my-10 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-panel-in">
     <!-- Top bar -->
-    <div class="flex justify-end mb-8">
+    <div class="flex justify-end items-center mb-8 gap-3">
+        <div th:replace="~{fragments/admin-nav :: panelClose}"></div>
         <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+        <div th:replace="~{fragments/theme :: toggleButton}"></div>
     </div>
 
     <!-- En-tête -->
     <div class="mb-8">
-        <a th:href="@{/admin/clients}" class="text-xs text-slate-400 font-medium hover:text-slate-600">← Retour aux clients</a>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mt-4" th:text="${client.prenom + ' ' + client.nom}">Prénom Nom</h1>
-        <p class="text-xs text-slate-500 mt-1" th:text="'ID: ' + ${client.id}">ID: 1</p>
+        <a th:href="@{/admin/clients}" class="text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300">← Retour aux clients</a>
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mt-4" th:text="${client.prenom + ' ' + client.nom}">Prénom Nom</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" th:text="'ID: ' + ${client.id}">ID: 1</p>
     </div>
 
     <!-- Main Content Grid -->
@@ -30,13 +31,14 @@
 
         <!-- Left Column - Contract history -->
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 class="text-lg font-bold text-slate-900 mb-4">Historique des contrats</h2>
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Historique des contrats</h2>
 
-                <div class="overflow-hidden rounded-xl border border-slate-100">
+                <div class="overflow-x-auto">
+                <div class="overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                        <tr class="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                        <tr class="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/50">
                             <th class="py-3 px-4">Emplacement</th>
                             <th class="py-3 px-4">Palier</th>
                             <th class="py-3 px-4">Date de début</th>
@@ -45,56 +47,57 @@
                             <th class="py-3 px-4"></th>
                         </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 text-xs">
-                        <tr th:each="contrat : ${contrats}" class="hover:bg-slate-50/80 transition-colors">
-                            <td class="py-3 px-4 font-bold text-slate-900" th:text="${contrat.emplacement.name}">Emplacement</td>
-                            <td class="py-3 px-4 text-slate-600" th:text="${#strings.capitalize(#strings.toLowerCase(contrat.emplacement.palier.name()).replace('_',' '))}">Palier 1</td>
-                            <td class="py-3 px-4 text-slate-600" th:text="${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
-                            <td class="py-3 px-4 text-slate-600" th:text="${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                        <tr th:each="contrat : ${contrats}" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
+                            <td class="py-3 px-4 font-bold text-slate-900 dark:text-slate-100" th:text="${contrat.emplacement.name}">Emplacement</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${#strings.capitalize(#strings.toLowerCase(contrat.emplacement.palier.name()).replace('_',' '))}">Palier 1</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
                             <td class="py-3 px-4">
-                                <span class="inline-flex items-center font-medium" th:classappend="${contrat.statut == 'VALIDER'} ? 'text-green-700' : 'text-slate-400'">
+                                <span class="inline-flex items-center font-medium" th:classappend="${contrat.statut == 'VALIDER'} ? 'text-green-700 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'">
                                     <span class="w-1.5 h-1.5 rounded-full mr-2" th:classappend="${contrat.statut == 'VALIDER'} ? 'bg-lime-500' : 'bg-slate-300'"></span>
                                     <span th:text="${contrat.statut}">VALIDER</span>
                                 </span>
                             </td>
                             <td class="py-3 px-4 text-right whitespace-nowrap">
-                                <a th:href="@{/admin/stores/{id}(id=${contrat.emplacement.id})}" class="text-slate-600 font-bold hover:underline">Boutique</a>
-                                <a th:href="@{/admin/contracts/{id}(id=${contrat.id})}" class="text-slate-600 font-bold hover:underline ml-2">Contrat</a>
+                                <a th:href="@{/admin/stores/{id}(id=${contrat.emplacement.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Boutique</a>
+                                <a th:href="@{/admin/contracts/{id}(id=${contrat.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline ml-2">Contrat</a>
                             </td>
                         </tr>
                         <tr th:if="${#lists.isEmpty(contrats)}">
-                            <td colspan="6" class="py-8 px-4 text-center text-slate-400">Aucun contrat pour ce client.</td>
+                            <td colspan="6" class="py-8 px-4 text-center text-slate-400 dark:text-slate-500">Aucun contrat pour ce client.</td>
                         </tr>
                         </tbody>
                     </table>
+                </div>
                 </div>
             </div>
         </div>
 
         <!-- Right Column - Client info -->
         <div class="space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Informations</p>
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+                <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">Informations</p>
                 <div class="space-y-4">
-                    <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                        <span class="text-sm text-slate-600">Téléphone</span>
-                        <span class="text-sm font-semibold text-slate-900" th:text="${client.telephone}">—</span>
+                    <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Téléphone</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${client.telephone}">—</span>
                     </div>
-                    <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                        <span class="text-sm text-slate-600">Email</span>
-                        <span class="text-sm font-semibold text-slate-900" th:text="${client.email} ?: '—'">—</span>
+                    <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Email</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${client.email} ?: '—'">—</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-slate-600">Numéro CNI</span>
-                        <span class="text-sm font-semibold text-slate-900" th:text="${client.numeroCNI} ?: '—'">—</span>
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Numéro CNI</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${client.numeroCNI} ?: '—'">—</span>
                     </div>
                 </div>
             </div>
 
             <!-- Info Card -->
-            <div class="bg-blue-50 rounded-2xl border border-blue-200 p-6" th:if="${client.email == null}">
-                <p class="text-xs font-bold text-blue-900 mb-2">ℹ️ Information</p>
-                <p class="text-xs text-blue-700">Ce client n'a pas d'email enregistré : il ne peut pas se connecter lui-même au portail. Son dossier est géré exclusivement depuis cet espace admin.</p>
+            <div class="bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-800 p-6" th:if="${client.email == null}">
+                <p class="text-xs font-bold text-blue-900 dark:text-blue-300 mb-2">Information</p>
+                <p class="text-xs text-blue-700 dark:text-blue-300">Ce client n'a pas d'email enregistré : il ne peut pas se connecter lui-même au portail. Son dossier est géré exclusivement depuis cet espace admin.</p>
             </div>
         </div>
 

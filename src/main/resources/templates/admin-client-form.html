@@ -4,31 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Formulaire client</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <th:block th:replace="~{fragments/theme :: head}"></th:block>
 </head>
-<body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
 
-<div th:replace="~{fragments/admin-nav :: sidebar(active='clients')}"></div>
+<div th:replace="~{fragments/admin-nav :: logoutDock}"></div>
 
 <!-- CONTENU PRINCIPAL -->
-<main class="ml-64 flex-grow p-10">
-
+<main class="max-w-4xl mx-auto p-6 md:p-10 my-6 md:my-10 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-panel-in">
     <!-- Top bar -->
-    <div class="flex justify-end mb-8">
+    <div class="flex justify-end items-center mb-8 gap-3">
+        <div th:replace="~{fragments/admin-nav :: panelClose}"></div>
         <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+        <div th:replace="~{fragments/theme :: toggleButton}"></div>
     </div>
 
     <!-- En-tête -->
     <div class="mb-8">
-        <a th:href="@{/admin/clients}" class="text-xs text-slate-400 font-medium hover:text-slate-600">← Retour aux clients</a>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mt-4">Ajouter un client</h1>
+        <a th:href="@{/admin/clients}" class="text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300">← Retour aux clients</a>
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mt-4">Ajouter un client</h1>
     </div>
 
     <!-- Formulaire -->
     <div class="max-w-2xl">
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-8">
 
-            <div th:if="${error}" class="p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl mb-6">
+            <div th:if="${error}" class="p-3 bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-800 text-red-600 dark:text-red-300 text-xs rounded-xl mb-6">
                 <span th:text="${error}">Erreur</span>
             </div>
 
@@ -38,38 +39,38 @@
                 <!-- Nom et Prénom -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Nom *</label>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Nom *</label>
                         <input type="text" name="nom" th:value="${client?.nom}" placeholder="Dupont" required
-                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Prénom *</label>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Prénom *</label>
                         <input type="text" name="prenom" th:value="${client?.prenom}" placeholder="Jean" required
-                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                 </div>
 
                 <!-- Téléphone -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Téléphone *</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Téléphone *</label>
                     <input type="tel" name="telephone" th:value="${client?.telephone}" placeholder="+237 6 00 00 00 00" required
-                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
                 <!-- Email -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Email</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Email</label>
                     <input type="email" name="email" th:value="${client?.email}" placeholder="jean@nezafi.com"
-                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
-                    <p class="text-[11px] text-slate-400 mt-1.5">Facultatif. Sans email, le client ne pourra pas se connecter lui-même au portail — vous gérez son dossier depuis cet espace admin.</p>
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Facultatif. Sans email, le client ne pourra pas se connecter lui-même au portail — vous gérez son dossier depuis cet espace admin.</p>
                 </div>
 
                 <!-- Numéro CNI -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Numéro CNI</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Numéro CNI</label>
                     <input type="text" name="numeroCNI" th:value="${client?.numeroCNI}" placeholder="Facultatif"
-                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
-                    <p class="text-[11px] text-slate-400 mt-1.5">Donnée sensible, visible uniquement par les administrateurs.</p>
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Donnée sensible, visible uniquement par les administrateurs.</p>
                 </div>
 
                 <!-- Buttons -->
@@ -77,7 +78,7 @@
                     <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
                         Créer le client
                     </button>
-                    <a th:href="@{/admin/clients}" class="bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
+                    <a th:href="@{/admin/clients}" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
                         Annuler
                     </a>
                 </div>

@@ -4,26 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Gestion des clients</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <th:block th:replace="~{fragments/theme :: head}"></th:block>
 </head>
-<body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
 
-<div th:replace="~{fragments/admin-nav :: sidebar(active='clients')}"></div>
+<div th:replace="~{fragments/admin-nav :: logoutDock}"></div>
 
 <!-- CONTENU PRINCIPAL -->
-<main class="ml-64 flex-grow p-10">
-
+<main class="max-w-7xl mx-auto p-6 md:p-10 my-6 md:my-10 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-panel-in">
     <!-- Top bar -->
-    <div class="flex justify-between items-center mb-8">
-        <span class="text-xs text-slate-400 font-medium">Tableau de bord / Gestion des clients</span>
-        <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+    <div class="flex justify-between items-center mb-8 gap-3 flex-wrap">
+        <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">Gestion des clients</span>
+        <div class="flex items-center gap-3">
+            <div th:replace="~{fragments/admin-nav :: panelClose}"></div>
+            <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+            <div th:replace="~{fragments/theme :: toggleButton}"></div>
+        </div>
     </div>
 
     <!-- En-tête de section -->
-    <div class="flex justify-between items-end mb-8">
+    <div class="flex justify-between items-end mb-8 gap-3 flex-wrap">
         <div>
-            <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-1">Gestion des clients</h1>
-            <p class="text-xs text-slate-500">Vue d'ensemble et gestion de tous les clients locataires.</p>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mb-1">Gestion des clients</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Vue d'ensemble et gestion de tous les clients locataires.</p>
         </div>
         <a th:href="@{/admin/clients/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
             + Ajouter un client
@@ -32,36 +35,37 @@
 
     <!-- Cartes statistiques -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Total Clients</p>
-            <p class="text-3xl font-black text-slate-900" th:text="${totalClients}">0</p>
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Total Clients</p>
+            <p class="text-3xl font-black text-slate-900 dark:text-slate-100" th:text="${totalClients}">0</p>
         </div>
     </div>
 
     <!-- Filtres -->
-    <form th:action="@{/admin/clients}" method="get" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-6 flex flex-wrap gap-3 items-end">
+    <form th:action="@{/admin/clients}" method="get" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 mb-6 flex flex-wrap gap-3 items-end">
         <div class="flex-grow min-w-[220px]">
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Recherche</label>
+            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Recherche</label>
             <input type="text" name="search" th:value="${search}" placeholder="Nom, prénom ou téléphone..."
-                   class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-slate-400">
+                   class="w-full bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
         </div>
         <div>
-            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Contrat</label>
-            <select name="contratActif" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-slate-400">
+            <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Contrat</label>
+            <select name="contratActif" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
                 <option value="" th:selected="${contratActifFiltre == null or contratActifFiltre == ''}">Tous</option>
                 <option value="avec" th:selected="${contratActifFiltre == 'avec'}">Avec contrat actif</option>
                 <option value="sans" th:selected="${contratActifFiltre == 'sans'}">Sans contrat actif</option>
             </select>
         </div>
-        <button type="submit" class="bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-800 transition-colors">Filtrer</button>
-        <a th:href="@{/admin/clients}" class="text-xs font-semibold text-slate-500 hover:text-slate-800 px-2 py-2">Réinitialiser</a>
+        <button type="submit" class="bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors">Filtrer</button>
+        <a th:href="@{/admin/clients}" class="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 px-2 py-2">Réinitialiser</a>
     </form>
 
     <!-- Tableau des clients -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden mb-6">
+        <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
             <thead>
-            <tr class="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+            <tr class="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/50">
                 <th class="py-4 px-6">Nom</th>
                 <th class="py-4 px-6">Prénom</th>
                 <th class="py-4 px-6">Téléphone</th>
@@ -69,28 +73,29 @@
                 <th class="py-4 px-6 text-right">Actions</th>
             </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100 text-xs">
-            <tr th:each="client : ${clients}" class="hover:bg-slate-50/80 transition-colors">
-                <td class="py-4 px-6 font-bold text-slate-900" th:text="${client.nom}">Nom</td>
-                <td class="py-4 px-6 text-slate-600" th:text="${client.prenom}">Prénom</td>
-                <td class="py-4 px-6 text-slate-600" th:text="${client.telephone}">Téléphone</td>
-                <td class="py-4 px-6 text-slate-600" th:text="${client.numeroCNI} ?: '—'">Numéro CNI</td>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+            <tr th:each="client : ${clients}" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
+                <td class="py-4 px-6 font-bold text-slate-900 dark:text-slate-100" th:text="${client.nom}">Nom</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${client.prenom}">Prénom</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${client.telephone}">Téléphone</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${client.numeroCNI} ?: '—'">Numéro CNI</td>
                 <td class="py-4 px-6 text-right space-x-2">
-                    <a th:href="@{/admin/clients/{id}(id=${client.id})}" class="text-slate-600 font-bold hover:underline">Voir</a>
+                    <a th:href="@{/admin/clients/{id}(id=${client.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Voir</a>
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(clients)}">
-                <td colspan="5" class="py-8 px-6 text-center text-slate-400">Aucun client trouvé.</td>
+                <td colspan="5" class="py-8 px-6 text-center text-slate-400 dark:text-slate-500">Aucun client trouvé.</td>
             </tr>
             </tbody>
         </table>
+        </div>
 
         <!-- Pagination bas de tableau -->
-        <div class="p-4 border-t border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <span class="text-xs text-slate-400" th:text="'Affichage de ' + ${clients.size()} + ' client(s)'">Affichage de 0 client(s)</span>
+        <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+            <span class="text-xs text-slate-400 dark:text-slate-500" th:text="'Affichage de ' + ${clients.size()} + ' client(s)'">Affichage de 0 client(s)</span>
             <div class="space-x-2">
-                <button class="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-600 hover:bg-slate-50">Précédent</button>
-                <button class="px-3 py-1.5 border border-slate-200 rounded-xl text-xs font-semibold bg-white text-slate-600 hover:bg-slate-50">Suivant</button>
+                <button class="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Précédent</button>
+                <button class="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Suivant</button>
             </div>
         </div>
     </div>

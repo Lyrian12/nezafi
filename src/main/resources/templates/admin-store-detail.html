@@ -4,30 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Détail emplacement</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <th:block th:replace="~{fragments/theme :: head}"></th:block>
 </head>
-<body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
 
-<div th:replace="~{fragments/admin-nav :: sidebar(active='stores')}"></div>
+<div th:replace="~{fragments/admin-nav :: logoutDock}"></div>
 
 <!-- CONTENU PRINCIPAL -->
-<main class="ml-64 flex-grow p-10">
-
+<main class="max-w-5xl mx-auto p-6 md:p-10 my-6 md:my-10 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-panel-in">
     <!-- Top bar -->
-    <div class="flex justify-end mb-8">
+    <div class="flex justify-end items-center mb-8 gap-3">
+        <div th:replace="~{fragments/admin-nav :: panelClose}"></div>
         <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+        <div th:replace="~{fragments/theme :: toggleButton}"></div>
     </div>
 
     <!-- En-tête -->
     <div class="mb-8">
-        <a th:href="@{/admin/stores}" class="text-xs text-slate-400 font-medium hover:text-slate-600">← Retour aux emplacements</a>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mt-4" th:text="${emplacement.name}">Emplacement</h1>
-        <p class="text-xs text-slate-500 mt-1" th:text="'ID: ' + ${emplacement.id}">ID: 1</p>
-        <a th:href="@{/admin/stores/edit/{id}(id=${emplacement.id})}" class="text-xs text-slate-400 font-medium hover:text-slate-600 underline">Modifier l'emplacement</a>
+        <a th:href="@{/admin/stores}" class="text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300">← Retour aux emplacements</a>
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mt-4" th:text="${emplacement.name}">Emplacement</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" th:text="'ID: ' + ${emplacement.id}">ID: 1</p>
+        <a th:href="@{/admin/stores/edit/{id}(id=${emplacement.id})}"
+           class="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300 underline">
+            <span class="w-3.5 h-3.5" th:insert="~{fragments/icons :: pencil}"></span>
+            Modifier l'emplacement
+        </a>
     </div>
 
-    <div th:if="${estOrpheline}" class="bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-xl px-4 py-3 mb-6">
-        ⚠️ Cet emplacement est marqué NON_DISPONIBLE mais aucun contrat validé n'y est rattaché — à vérifier.
+    <div th:if="${estOrpheline}" class="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6">
+        <span class="w-4 h-4 shrink-0" th:insert="~{fragments/icons :: alertTriangle}"></span>
+        Cet emplacement est marqué NON_DISPONIBLE mais aucun contrat validé n'y est rattaché — à vérifier.
     </div>
 
     <!-- Main Content Grid -->
@@ -35,13 +41,14 @@
 
         <!-- Left Column - Contract history -->
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h2 class="text-lg font-bold text-slate-900 mb-4">Historique des contrats</h2>
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Historique des contrats</h2>
 
-                <div class="overflow-hidden rounded-xl border border-slate-100">
+                <div class="overflow-x-auto">
+                <div class="overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                        <tr class="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                        <tr class="border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-slate-50/50 dark:bg-slate-800/50">
                             <th class="py-3 px-4">Locataire</th>
                             <th class="py-3 px-4">Date de début</th>
                             <th class="py-3 px-4">Date de fin</th>
@@ -49,55 +56,56 @@
                             <th class="py-3 px-4"></th>
                         </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 text-xs">
-                        <tr th:each="contrat : ${contrats}" class="hover:bg-slate-50/80 transition-colors">
-                            <td class="py-3 px-4 font-bold text-slate-900" th:text="${contrat.locataire.prenom + ' ' + contrat.locataire.nom}">Locataire</td>
-                            <td class="py-3 px-4 text-slate-600" th:text="${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
-                            <td class="py-3 px-4 text-slate-600" th:text="${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                        <tr th:each="contrat : ${contrats}" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
+                            <td class="py-3 px-4 font-bold text-slate-900 dark:text-slate-100" th:text="${contrat.locataire.prenom + ' ' + contrat.locataire.nom}">Locataire</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
                             <td class="py-3 px-4">
-                                <span class="inline-flex items-center font-medium" th:classappend="${contrat.statut == 'VALIDER'} ? 'text-green-700' : 'text-slate-400'">
+                                <span class="inline-flex items-center font-medium" th:classappend="${contrat.statut == 'VALIDER'} ? 'text-green-700 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'">
                                     <span class="w-1.5 h-1.5 rounded-full mr-2" th:classappend="${contrat.statut == 'VALIDER'} ? 'bg-lime-500' : 'bg-slate-300'"></span>
                                     <span th:text="${contrat.statut}">VALIDER</span>
                                 </span>
                             </td>
                             <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                                <a th:href="@{/admin/clients/{id}(id=${contrat.locataire.id})}" class="text-slate-600 font-bold hover:underline">Client</a>
-                                <a th:href="@{/admin/contracts/{id}(id=${contrat.id})}" class="text-slate-600 font-bold hover:underline">Contrat</a>
+                                <a th:href="@{/admin/clients/{id}(id=${contrat.locataire.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Client</a>
+                                <a th:href="@{/admin/contracts/{id}(id=${contrat.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Contrat</a>
                             </td>
                         </tr>
                         <tr th:if="${#lists.isEmpty(contrats)}">
-                            <td colspan="5" class="py-8 px-4 text-center text-slate-400">Aucun contrat pour cet emplacement.</td>
+                            <td colspan="5" class="py-8 px-4 text-center text-slate-400 dark:text-slate-500">Aucun contrat pour cet emplacement.</td>
                         </tr>
                         </tbody>
                     </table>
+                </div>
                 </div>
             </div>
         </div>
 
         <!-- Right Column - Store info -->
         <div class="space-y-6">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">Informations</p>
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+                <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">Informations</p>
                 <div class="space-y-4">
-                    <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                        <span class="text-sm text-slate-600">Palier</span>
-                        <span class="text-sm font-semibold text-slate-900" th:text="${#strings.capitalize(#strings.toLowerCase(emplacement.palier.name()).replace('_',' '))}">Palier 1</span>
+                    <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Palier</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${#strings.capitalize(#strings.toLowerCase(emplacement.palier.name()).replace('_',' '))}">Palier 1</span>
                     </div>
-                    <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                        <span class="text-sm text-slate-600">Catégorie</span>
-                        <span class="text-sm font-semibold text-slate-900" th:text="${#strings.capitalize(#strings.toLowerCase(emplacement.categorie.name()))}">Boutique</span>
+                    <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Catégorie</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${#strings.capitalize(#strings.toLowerCase(emplacement.categorie.name()))}">Boutique</span>
                     </div>
-                    <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                        <span class="text-sm text-slate-600">Superficie</span>
-                        <span class="text-sm font-semibold text-slate-900" th:text="${#numbers.formatDecimal(emplacement.superficie, 1, 'WHITESPACE', 2, 'COMMA')} + ' m²'">25,00 m²</span>
+                    <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Superficie</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(emplacement.superficie, 1, 'WHITESPACE', 2, 'COMMA')} + ' m²'">25,00 m²</span>
                     </div>
-                    <div class="flex justify-between items-center pb-3 border-b border-slate-100">
-                        <span class="text-sm text-slate-600">Prix</span>
-                        <span class="text-sm font-semibold text-slate-900" th:text="${#numbers.formatDecimal(emplacement.prix, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</span>
+                    <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Prix</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(emplacement.prix, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</span>
                     </div>
                     <div class="flex justify-between items-center">
-                        <span class="text-sm text-slate-600">Statut</span>
-                        <span class="text-sm font-semibold text-slate-900" th:text="${emplacement.statut}">DISPONIBLE</span>
+                        <span class="text-sm text-slate-600 dark:text-slate-300">Statut</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${emplacement.statut}">DISPONIBLE</span>
                     </div>
                 </div>
             </div>

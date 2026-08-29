@@ -4,33 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Formulaire contrat</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <th:block th:replace="~{fragments/theme :: head}"></th:block>
 </head>
-<body class="bg-[#faf8f5] text-slate-800 antialiased min-h-screen flex">
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
 
-<div th:replace="~{fragments/admin-nav :: sidebar(active='contracts')}"></div>
+<div th:replace="~{fragments/admin-nav :: logoutDock}"></div>
 
-<!-- CONTENU PRINCIPAL -->
-<main class="ml-64 flex-grow p-10">
-
+<!-- CONTENU PRINCIPAL — carte centrée qui se présente comme un panneau ouvert
+     par-dessus le tableau de bord (cf. ~{fragments/theme :: head} pour l'animation). -->
+<main class="max-w-4xl mx-auto p-6 md:p-10 my-6 md:my-10 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-panel-in">
     <!-- Top bar -->
-    <div class="flex justify-end mb-8">
+    <div class="flex justify-end items-center mb-8 gap-3">
+        <div th:replace="~{fragments/admin-nav :: panelClose}"></div>
         <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+        <div th:replace="~{fragments/theme :: toggleButton}"></div>
     </div>
 
     <!-- En-tête -->
     <div class="mb-8">
-        <a th:href="@{/admin/contracts}" class="text-xs text-slate-400 font-medium hover:text-slate-600">← Retour aux contrats</a>
-        <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mt-4" th:text="${contrat.id == null} ? 'Ajouter un contrat' : 'Modifier le contrat'">Ajouter un contrat</h1>
+        <a th:href="@{/admin/contracts}" class="text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300">← Retour aux contrats</a>
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mt-4" th:text="${contrat.id == null} ? 'Ajouter un contrat' : 'Modifier le contrat'">Ajouter un contrat</h1>
     </div>
 
     <!-- Formulaire -->
     <div class="max-w-2xl">
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-8">
 
-            <div th:if="${error}" class="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl px-4 py-3 mb-6" th:text="${error}">Erreur</div>
+            <div th:if="${error}" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6" th:text="${error}">Erreur</div>
 
-            <div th:if="${contrat.contratPrecedent != null}" class="bg-blue-50 border border-blue-200 text-blue-800 text-xs rounded-xl px-4 py-3 mb-6">
+            <div th:if="${contrat.contratPrecedent != null}" class="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300 text-xs rounded-xl px-4 py-3 mb-6">
                 Renouvellement du contrat #<span th:text="${contrat.contratPrecedent.id}">1</span>
                 (<span th:text="${contrat.contratPrecedent.emplacement.name}">Emplacement</span>) — les dates et l'échéancier sont à ressaisir pour cette nouvelle période.
             </div>
@@ -41,8 +43,8 @@
 
                 <!-- Store Selection -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Emplacement *</label>
-                    <select id="emplacement-select" name="emplacementId" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Emplacement *</label>
+                    <select id="emplacement-select" name="emplacementId" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                         <option value="">Sélectionner un emplacement</option>
                         <option th:each="emplacement : ${emplacements}"
                                 th:value="${emplacement.id}"
@@ -54,8 +56,8 @@
 
                 <!-- Tenant Selection -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Locataire *</label>
-                    <select name="locataireId" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Locataire *</label>
+                    <select name="locataireId" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                         <option value="">Sélectionner un locataire</option>
                         <option th:each="locataire : ${locataires}"
                                 th:value="${locataire.id}"
@@ -66,54 +68,54 @@
 
                 <!-- Start Date -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Date de début *</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Date de début *</label>
                     <input type="date" name="dateDebut" th:value="${contrat.dateDebut}" required
-                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
                 <!-- End Date -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Date de fin *</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Date de fin *</label>
                     <input type="date" name="dateFin" th:value="${contrat.dateFin}" required
-                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
                 <!-- Enseigne / Activité -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Nom d'enseigne</label>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Nom d'enseigne</label>
                         <input type="text" name="nomEnseigne" th:value="${contrat.nomEnseigne}" placeholder="ex : Les Tiktokeurs, ETS WANG..."
-                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Activité</label>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Activité</label>
                         <input type="text" name="activite" th:value="${contrat.activite}" placeholder="ex : Vente de vêtements"
-                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                 </div>
-                <p class="text-[11px] text-slate-400 -mt-4">Le nom d'enseigne est celui présenté au public par le client — souvent différent de son nom légal.</p>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 -mt-4">Le nom d'enseigne est celui présenté au public par le client — souvent différent de son nom légal.</p>
 
                 <!-- Terms -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Termes et conditions</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Termes et conditions</label>
                     <textarea name="termes" th:text="${contrat.termes}" placeholder="Entrez les termes du contrat..." rows="4"
-                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors"></textarea>
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors"></textarea>
                 </div>
 
                 <!-- Status -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Statut *</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Statut *</label>
                     <!-- RESILIER n'est jamais proposé ici : la résiliation passe uniquement par
                          l'action dédiée (motif obligatoire) sur la fiche contrat. Si le contrat
                          est déjà résilié, on l'affiche en lecture seule pour ne pas le "dé-résilier"
                          par erreur en resoumettant ce formulaire. -->
                     <div th:if="${contrat.statut != null && contrat.statut.name() == 'RESILIER'}">
                         <input type="hidden" name="statut" value="RESILIER"/>
-                        <p class="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-500">
+                        <p class="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                             Résilié — utilisez l'action "Résilier" depuis la fiche contrat pour revenir sur ce statut.
                         </p>
                     </div>
-                    <select th:unless="${contrat.statut != null && contrat.statut.name() == 'RESILIER'}" name="statut" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                    <select th:unless="${contrat.statut != null && contrat.statut.name() == 'RESILIER'}" name="statut" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                         <option value="">Sélectionner un statut</option>
                         <option value="EN_ATTENTE" th:selected="${contrat.statut != null && contrat.statut.name() == 'EN_ATTENTE'}">En Attente</option>
                         <option value="VALIDER" th:selected="${contrat.statut != null && contrat.statut.name() == 'VALIDER'}">Validé</option>
@@ -124,58 +126,58 @@
                 <!-- Loyer -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Durée couverte par le loyer (mois) *</label>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Durée couverte par le loyer (mois) *</label>
                         <input type="number" id="duree-loyer" name="dureeLoyerMois" th:value="${contrat.dureeLoyerMois}" min="1" step="1" placeholder="ex : 12" required
-                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Montant du loyer (FCFA) *</label>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Montant du loyer (FCFA) *</label>
                         <input type="number" step="0.01" min="0" id="montant-loyer" name="montantLoyer" th:value="${contrat.montantLoyer}" placeholder="Suggéré, modifiable" required
-                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                 </div>
-                <p class="text-[11px] text-slate-400 -mt-4">Pratique standard : 12 mois — librement négociable au cas par cas. Le montant est suggéré (durée × prix de l'emplacement) dès que la durée est saisie, et reste modifiable à la main.</p>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 -mt-4">Pratique standard : 12 mois — librement négociable au cas par cas. Le montant est suggéré (durée × prix de l'emplacement) dès que la durée est saisie, et reste modifiable à la main.</p>
 
                 <!-- Caution -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Durée couverte par la caution (mois) *</label>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Durée couverte par la caution (mois) *</label>
                         <input type="number" id="duree-caution" name="dureeCautionMois" th:value="${contrat.dureeCautionMois}" min="0" step="1" placeholder="ex : 12" required
-                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">Montant de la caution (FCFA) *</label>
+                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Montant de la caution (FCFA) *</label>
                         <input type="number" step="0.01" min="0" id="montant-caution" name="montantCaution" th:value="${contrat.montantCaution}" placeholder="Suggéré, modifiable" required
-                               class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
+                               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                 </div>
-                <p class="text-[11px] text-slate-400 -mt-4">Indépendante du loyer : durée et montant librement choisis, un locataire peut par exemple payer 6 mois de caution cash et le reste via l'échéancier. Simple montant, sans statut ni motif de retenue.</p>
+                <p class="text-[11px] text-slate-400 dark:text-slate-500 -mt-4">Indépendante du loyer : durée et montant librement choisis, un locataire peut par exemple payer 6 mois de caution cash et le reste via l'échéancier. Simple montant, sans statut ni motif de retenue.</p>
 
                 <!-- Préavis -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Date de préavis</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Date de préavis</label>
                     <input type="date" name="datePreavis" th:value="${contrat.datePreavis}"
-                           class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                           class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                 </div>
 
                 <!-- Échéances -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-2">Échéances à ajouter</label>
-                    <p class="text-[11px] text-slate-400 mb-3">Chaque contrat a son propre échéancier négocié au cas par cas — ajoutez librement une ou plusieurs échéances (aucune génération automatique).</p>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Échéances à ajouter</label>
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Chaque contrat a son propre échéancier négocié au cas par cas — ajoutez librement une ou plusieurs échéances (aucune génération automatique).</p>
                     <div id="echeances-container" class="space-y-3">
                         <div class="flex gap-3 echeance-row">
                             <input type="date" name="echeanceDates" placeholder="Date d'échéance"
-                                   class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                                   class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                             <input type="number" step="0.01" min="0" name="echeanceMontants" placeholder="Montant dû (FCFA)"
-                                   class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
-                            <select name="echeanceTypes" class="w-32 bg-slate-50 border border-slate-200 rounded-xl px-2 py-3 text-sm text-slate-800 focus:outline-none focus:border-slate-400 transition-colors">
+                                   class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
+                            <select name="echeanceTypes" class="w-32 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                                 <option value="LOYER">Loyer</option>
                                 <option value="CAUTION">Caution</option>
                             </select>
                             <button type="button" class="remove-echeance-btn px-3 text-slate-400 hover:text-red-500 transition-colors" title="Retirer cette échéance">✕</button>
                         </div>
                     </div>
-                    <button type="button" id="add-echeance-btn" class="mt-3 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors">
+                    <button type="button" id="add-echeance-btn" class="mt-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
                         + Ajouter une échéance
                     </button>
                 </div>
@@ -185,7 +187,7 @@
                     <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
                         <span th:text="${contrat.id == null} ? 'Créer le contrat' : 'Modifier le contrat'">Créer le contrat</span>
                     </button>
-                    <a th:href="@{/admin/contracts}" class="bg-slate-200 hover:bg-slate-300 text-slate-900 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
+                    <a th:href="@{/admin/contracts}" class="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-slate-100 font-bold py-3 px-6 rounded-xl transition-colors text-sm">
                         Annuler
                     </a>
                 </div>
