@@ -39,7 +39,10 @@ public class SecurityConfig {
                 // /api/users expose la création/modification de n'importe quel compte (y
                 // compris le rôle) : ADMIN uniquement, plus restrictif que /api/** en général.
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
-                .requestMatchers("/api/**").hasAnyRole("ADMIN", "LOCATAIRE")
+                // /api/contrats accueille maintenant aussi SECRETARIAT (édition) et COMPTABLE
+                // (lecture seule) : le détail fin est tranché dans ContratController lui-même,
+                // cette règle n'est que la barrière grossière laissant passer les 4 rôles.
+                .requestMatchers("/api/**").hasAnyRole("ADMIN", "SECRETARIAT", "COMPTABLE", "LOCATAIRE")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
