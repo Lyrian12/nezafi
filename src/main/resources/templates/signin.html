@@ -18,30 +18,29 @@
     </div>
 
     <!-- En-tête -->
-    <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-1">Bon retour</h1>
-    <p class="text-xs text-slate-500 mb-8">Entrez vos identifiants pour accéder à votre espace</p>
+    <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-1">Welcome Back</h1>
+    <p class="text-xs text-slate-500 mb-8">Enter your credentials to access your portal</p>
 
     <!-- Formulaire de connexion Spring Security -->
-    <form action="/signin" method="post" class="space-y-4 text-left">
-        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+    <form th:action="@{/signin}" method="post" class="space-y-4 text-left">
 
         <!-- Message d'erreur éventuel -->
         <div th:if="${error}" class="p-3 bg-red-50 border border-red-100 text-red-600 text-xs rounded-xl">
-            Identifiant ou mot de passe invalide. Veuillez réessayer.
+            Invalid email or password. Please try again.
         </div>
 
-        <!-- Email ou téléphone / Username -->
+        <!-- Email / Username -->
         <div>
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email ou téléphone</label>
-            <input type="text" name="username" placeholder="nom@entreprise.com ou +237 6 00 00 00 00" required
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email Address</label>
+            <input type="email" name="username" placeholder="name@company.com" required
                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
         </div>
 
         <!-- Mot de passe -->
         <div>
             <div class="flex justify-between items-center mb-1.5">
-                <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Mot de passe</label>
-                <a href="/forgot-password" class="text-[11px] font-medium text-slate-400 hover:text-slate-700 transition-colors">Mot de passe oublié ?</a>
+                <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Password</label>
+                <a href="/forgot-password" class="text-[11px] font-medium text-slate-400 hover:text-slate-700 transition-colors">Forgot password?</a>
             </div>
             <input type="password" name="password" placeholder="••••••••" required
                    class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-colors">
@@ -49,14 +48,14 @@
 
         <!-- Bouton Sign In (Sombre élégant inspiré du dashboard) -->
         <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3.5 rounded-xl transition-colors text-sm shadow-sm mt-2">
-            Se connecter
+            Sign In
         </button>
 
     </form>
 
     <!-- Lien vers l'inscription -->
     <p class="text-center text-xs text-slate-500 mt-6">
-        Vous n'avez pas de compte ? <a href="/signup" class="font-bold text-slate-900 hover:underline">Inscrivez-vous gratuitement</a>
+        Don't have an account? <a href="/signup" class="font-bold text-slate-900 hover:underline">Sign up for free</a>
     </p>
 
 </div>
