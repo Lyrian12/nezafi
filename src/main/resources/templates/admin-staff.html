@@ -26,7 +26,7 @@
     <div class="flex justify-between items-end mb-8 gap-3 flex-wrap">
         <div>
             <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mb-1">Gestion du personnel</h1>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Comptes Secrétariat et Comptable — réservé aux administrateurs.</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Comptes Administrateur, Secrétariat et Comptable — réservé aux administrateurs.</p>
         </div>
         <a th:href="@{/admin/staff/add}" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 text-xs font-bold px-5 py-3 rounded-xl transition-colors shadow-sm">
             + Ajouter un compte
@@ -56,7 +56,7 @@
                 <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${membre.email} ?: '—'">Email</td>
                 <td class="py-4 px-6">
                     <span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium px-2.5 py-1 rounded-md text-[11px]"
-                          th:text="${membre.role.name() == 'ROLE_SECRETARIAT'} ? 'Secrétariat' : 'Comptable'">Rôle</span>
+                          th:text="${membre.role.name() == 'ROLE_ADMIN'} ? 'Administrateur' : (${membre.role.name() == 'ROLE_SECRETARIAT'} ? 'Secrétariat' : 'Comptable')">Rôle</span>
                 </td>
                 <td class="py-4 px-6 text-right">
                     <a th:href="@{/admin/staff/edit/{id}(id=${membre.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Modifier</a>

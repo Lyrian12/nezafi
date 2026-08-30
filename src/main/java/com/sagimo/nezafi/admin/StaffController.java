@@ -24,17 +24,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Gestion des comptes du personnel (SECRETARIAT, COMPTABLE) — réservée à ADMIN. Ne passe pas
- * par /signup (ouvert à tous, crée uniquement des comptes ROLE_LOCATAIRE) : ici, c'est un admin
- * qui choisit nom/prénom/mot de passe/rôle pour un membre de l'équipe. Un compte ADMIN ou
- * ROLE_LOCATAIRE n'est jamais créé ni modifié depuis cette page.
+ * Gestion des comptes du personnel (ADMIN, SECRETARIAT, COMPTABLE) — réservée à ADMIN. Ne passe
+ * pas par /signup (ouvert à tous, crée uniquement des comptes ROLE_LOCATAIRE) : ici, c'est un
+ * admin qui choisit nom/prénom/mot de passe/rôle pour un membre de l'équipe, y compris un autre
+ * compte ADMIN. Un compte ROLE_LOCATAIRE n'est en revanche jamais créé ni modifié depuis cette
+ * page — /signup reste la seule voie pour un locataire.
  */
 @Controller
 @RequestMapping("/admin/staff")
 @PreAuthorize("hasRole('ADMIN')")
 public class StaffController {
 
-    private static final List<Role> ROLES_PERSONNEL = List.of(Role.ROLE_SECRETARIAT, Role.ROLE_COMPTABLE);
+    private static final List<Role> ROLES_PERSONNEL = List.of(Role.ROLE_ADMIN, Role.ROLE_SECRETARIAT, Role.ROLE_COMPTABLE);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -53,8 +54,8 @@ public class StaffController {
                 .orElseThrow(() -> new RuntimeException("Admin not found"));
     }
 
-    /** Levée quand l'id demandé n'existe pas ou n'est pas un compte SECRETARIAT/COMPTABLE
-     *  (ex. quelqu'un modifie l'URL à la main pour viser un compte ADMIN ou LOCATAIRE) — gérée
+    /** Levée quand l'id demandé n'existe pas ou n'est pas un compte du personnel
+     *  (ex. quelqu'un modifie l'URL à la main pour viser un compte LOCATAIRE) — gérée
      *  par {@link #compteInvalide} pour rediriger proprement plutôt que de laisser passer une
      *  page d'erreur 500 avec trace technique. */
     private static class CompteInvalideException extends RuntimeException {
@@ -63,12 +64,12 @@ public class StaffController {
         }
     }
 
-    /** Un compte "personnel" au sens de cette page : uniquement SECRETARIAT ou COMPTABLE. */
+    /** Un compte "personnel" au sens de cette page : ADMIN, SECRETARIAT ou COMPTABLE. */
     private User trouverCompteDuPersonnel(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new CompteInvalideException("Compte introuvable."));
         if (!ROLES_PERSONNEL.contains(user.getRole())) {
-            throw new CompteInvalideException("Ce compte n'est pas un compte du personnel (SECRETARIAT/COMPTABLE).");
+            throw new CompteInvalideException("Ce compte n'est pas un compte du personnel (ADMIN/SECRETARIAT/COMPTABLE).");
         }
         return user;
     }
@@ -121,7 +122,7 @@ public class StaffController {
         String normalizedEmail = (email == null || email.isBlank()) ? null : email.trim();
 
         if (roleEnum == null) {
-            return rejeter(model, "Rôle invalide : uniquement Secrétariat ou Comptable depuis cette page.",
+            return rejeter(model, "Rôle invalide : uniquement Administrateur, Secrétariat ou Comptable depuis cette page.",
                     nom, prenom, trimmedTelephone, normalizedEmail, role);
         }
         if (userRepository.findByTelephone(trimmedTelephone).isPresent()) {
@@ -204,7 +205,7 @@ public class StaffController {
         String normalizedEmail = (email == null || email.isBlank()) ? null : email.trim();
 
         if (roleEnum == null) {
-            model.addAttribute("error", "Rôle invalide : uniquement Secrétariat ou Comptable depuis cette page.");
+            model.addAttribute("error", "Rôle invalide : uniquement Administrateur, Secrétariat ou Comptable depuis cette page.");
             model.addAttribute("membre", membre);
             return "admin-staff-form";
         }

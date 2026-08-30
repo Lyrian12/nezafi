@@ -4,6 +4,7 @@ import com.sagimo.nezafi.audit.JournalAudit;
 import com.sagimo.nezafi.audit.JournalAuditRepository;
 import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
+import com.sagimo.nezafi.contrat.ContratStatusService;
 import com.sagimo.nezafi.contrat.StatutContrat;
 import com.sagimo.nezafi.echeance.Echeance;
 import com.sagimo.nezafi.echeance.EcheanceRepository;
@@ -48,10 +49,10 @@ import java.util.Map;
  */
 @Controller
 @RequestMapping("/admin")
-// SECRETARIAT y accède aussi (occupation, alertes, aperçus utiles au quotidien) mais sans le
-// bloc "Journal d'audit" — masqué dans la vue, cf. le paramètre estAdmin ci-dessous. Pas
-// COMPTABLE : ce tableau de bord est explicitement hors de son périmètre.
-@PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT')")
+// SECRETARIAT et COMPTABLE y accèdent aussi (occupation, alertes, aperçus utiles au quotidien)
+// mais sans le bloc "Journal d'audit" — masqué dans la vue, cf. le paramètre estAdmin
+// ci-dessous, ni la tuile "Gestion du personnel", ni la liste des comptes du personnel.
+@PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')")
 public class AdminDashboardController {
 
     // Fenêtre du graphique d'encaissements : les 6 derniers mois glissants, mois courant inclus.
@@ -66,6 +67,7 @@ public class AdminDashboardController {
     private final AdminAlertService adminAlertService;
     private final EmplacementRepository emplacementRepository;
     private final ContratRepository contratRepository;
+    private final ContratStatusService contratStatusService;
     private final UserRepository userRepository;
     private final EcheanceRepository echeanceRepository;
     private final EcheanceStatusService echeanceStatusService;
@@ -73,12 +75,14 @@ public class AdminDashboardController {
     private final JournalAuditRepository journalAuditRepository;
 
     public AdminDashboardController(AdminAlertService adminAlertService, EmplacementRepository emplacementRepository,
-                                     ContratRepository contratRepository, UserRepository userRepository,
+                                     ContratRepository contratRepository, ContratStatusService contratStatusService,
+                                     UserRepository userRepository,
                                      EcheanceRepository echeanceRepository, EcheanceStatusService echeanceStatusService,
                                      PaiementRepository paiementRepository, JournalAuditRepository journalAuditRepository) {
         this.adminAlertService = adminAlertService;
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
+        this.contratStatusService = contratStatusService;
         this.userRepository = userRepository;
         this.echeanceRepository = echeanceRepository;
         this.echeanceStatusService = echeanceStatusService;
@@ -87,18 +91,33 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(@RequestParam(required = false) Long emplacementId, Model model,
-                             Authentication authentication) {
+    public String dashboard(@RequestParam(required = false) Long emplacementId,
+                             @RequestParam(required = false) StatutEcheance statutEcheance,
+                             Model model, Authentication authentication) {
         boolean estAdmin = authentication.getAuthorities().stream()
                 .anyMatch(autorite -> autorite.getAuthority().equals("ROLE_ADMIN"));
         model.addAttribute("estAdmin", estAdmin);
+
+        // Message de bienvenue personnalisé, en haut du tableau de bord (ADMIN/SECRETARIAT/
+        // COMPTABLE, les 3 rôles qui atterrissent ici).
+        String identifiant = authentication.getName();
+        userRepository.findByEmail(identifiant).or(() -> userRepository.findByTelephone(identifiant))
+                .ifPresent(utilisateur -> model.addAttribute("nomUtilisateurConnecte",
+                        utilisateur.getPrenom() + " " + utilisateur.getNom()));
+
+        // Rattrape en premier les emplacements dont le contrat a simplement expiré sans qu'on y
+        // touche (cf. ContratStatusService.rafraichirStatut), avant tout calcul d'alerte ou
+        // d'occupation ci-dessous — sinon l'alerte "orphelin" se déclencherait sur un état déjà
+        // corrigé une ligne plus bas, incohérence purement liée à l'ordre des appels.
+        List<Emplacement> allStores = emplacementRepository.findAll();
+        contratStatusService.rafraichirStatuts(allStores);
+
         // Alertes de cohérence (mêmes règles que l'ancien widget de /admin/stores)
         model.addAttribute("emplacementsOrphelins", adminAlertService.emplacementsNonDisponiblesSansContratActif());
         model.addAttribute("contratsEcartLoyer", adminAlertService.contratsAvecEcartLoyerSignificatif());
         model.addAttribute("echeancesExcedentaires", adminAlertService.echeancesAvecPaiementExcedentaire());
 
         // Occupation par palier (donut) — même calcul que l'ancien widget de /admin/stores.
-        List<Emplacement> allStores = emplacementRepository.findAll();
         List<PalierOccupancy> occupancyByPalier = Arrays.stream(Palier.values())
                 .map(p -> {
                     long total = allStores.stream().filter(b -> b.getPalier() == p).count();
@@ -140,13 +159,15 @@ public class AdminDashboardController {
         model.addAttribute("apercuClients", apercuClients);
         model.addAttribute("totalClients", userRepository.findByRole(Role.ROLE_LOCATAIRE).size());
 
-        // Échéances : en retard d'abord, puis les plus proches — recalcul paresseux du statut,
-        // comme sur /admin/echeances et l'ancien widget de /admin/stores.
+        // Échéances : TOUTES par défaut (retard d'abord, puis en cours, puis payées — chacune
+        // triée par date), filtrables sur place via ?statutEcheance=... sans passer par la page
+        // séparée /admin/echeances (le lien "Voir tout" reste disponible pour la vue complète
+        // avec ses propres filtres, mais n'est plus le seul moyen de filtrer).
         List<Echeance> toutesEcheances = echeanceRepository.findAll();
         echeanceStatusService.rafraichirStatuts(toutesEcheances);
         List<Echeance> echeancesApercu = toutesEcheances.stream()
-                .filter(e -> e.getStatut() != StatutEcheance.PAYEE)
-                .sorted(Comparator.comparing((Echeance e) -> e.getStatut() != StatutEcheance.EN_RETARD)
+                .filter(e -> statutEcheance == null || e.getStatut() == statutEcheance)
+                .sorted(Comparator.comparing((Echeance e) -> prioriteStatutEcheance(e.getStatut()))
                         .thenComparing(Echeance::getDateEcheance))
                 .limit(8)
                 .toList();
@@ -156,14 +177,24 @@ public class AdminDashboardController {
         }
         model.addAttribute("echeancesApercu", echeancesApercu);
         model.addAttribute("totalPayeParEcheance", totalPayeParEcheance);
+        model.addAttribute("statutEcheanceFiltre", statutEcheance);
+        model.addAttribute("statutsEcheance", StatutEcheance.values());
 
         // Journal d'audit : dernières entrées — réservé à ADMIN (estAdmin), SECRETARIAT n'a
-        // pas accès au journal d'audit ; le bloc correspondant est masqué côté template.
+        // pas accès au journal d'audit ; le bloc correspondant est masqué côté template. Même
+        // restriction pour la liste des comptes du personnel juste en dessous (gestion des
+        // comptes déjà réservée à ADMIN sur /admin/staff, cohérent de la masquer ici aussi).
         if (estAdmin) {
             List<JournalAudit> dernieresEntreesAudit = journalAuditRepository.findAllByOrderByDateActionDesc().stream()
                     .limit(6)
                     .toList();
             model.addAttribute("dernieresEntreesAudit", dernieresEntreesAudit);
+
+            List<User> personnel = userRepository
+                    .findByRoleIn(List.of(Role.ROLE_ADMIN, Role.ROLE_SECRETARIAT, Role.ROLE_COMPTABLE)).stream()
+                    .sorted(Comparator.comparing(User::getNom))
+                    .toList();
+            model.addAttribute("personnel", personnel);
         }
 
         // Encaissements réellement payés par mois (pas le loyer affiché), filtrables par
@@ -248,6 +279,17 @@ public class AdminDashboardController {
             points.add(new RevenuePoint(m, capitalize(label), total, x, y));
         }
         return points;
+    }
+
+    /** Ordre d'affichage du widget "Échéances" : en retard d'abord (le plus actionnable), puis
+     *  en cours, puis payées — pour que le filtre par défaut (aucun) reste utile malgré
+     *  l'inclusion des échéances payées. */
+    private int prioriteStatutEcheance(StatutEcheance statut) {
+        return switch (statut) {
+            case EN_RETARD -> 0;
+            case EN_COURS -> 1;
+            case PAYEE -> 2;
+        };
     }
 
     private String capitalize(String value) {

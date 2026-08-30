@@ -53,6 +53,11 @@ public class AdminController {
     // Cette classe mélange des routes aux droits différents (lecture vs écriture, ADMIN seul
     // pour les suppressions) : plus de @PreAuthorize de classe unique, chaque méthode porte le
     // sien. Constantes pour éviter de répéter les mêmes expressions ~20 fois.
+    //
+    // COMPTABLE est strictement lecture seule, sans aucune exception : aucune création ni
+    // modification nulle part, y compris sur emplacements et clients (un temps ouverts en
+    // écriture pour lui, retiré sur demande explicite — LECTURE_STAFF reste son seul niveau
+    // d'accès dans toute cette classe, jamais EDITION_STAFF).
     private static final String LECTURE_STAFF = "hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')";
     private static final String EDITION_STAFF = "hasAnyRole('ADMIN','SECRETARIAT')";
     private static final String ADMIN_SEUL = "hasRole('ADMIN')";
@@ -106,10 +111,31 @@ public class AdminController {
         return snapshot;
     }
 
+    /**
+     * Emplacements proposés dans le menu déroulant de création d'un contrat : uniquement
+     * DISPONIBLE (jamais ceux déjà occupés par un contrat actif) — après avoir rattrapé au
+     * passage les statuts éventuellement périmés (cf. ContratStatusService.rafraichirStatuts).
+     * Ne concerne QUE la création : le renouvellement (GET /admin/contracts/{id}/renew)
+     * pré-remplit déjà l'emplacement depuis l'ancien contrat et ne passe pas par ce menu ;
+     * l'édition doit elle continuer à montrer l'emplacement déjà assigné même s'il n'est plus
+     * DISPONIBLE (cf. rejectContractForm, appelé aussi bien depuis l'ajout que la modification).
+     */
+    private List<Emplacement> emplacementsDisponiblesPourCreation() {
+        List<Emplacement> tous = emplacementRepository.findAll();
+        contratStatusService.rafraichirStatuts(tous);
+        return tous.stream().filter(e -> e.getStatut() == StatutEmplacement.DISPONIBLE).toList();
+    }
+
     private String rejectContractForm(Model model, String error, Contrat contrat) {
+        return rejectContractForm(model, error, contrat, true);
+    }
+
+    private String rejectContractForm(Model model, String error, Contrat contrat, boolean disponiblesUniquement) {
         model.addAttribute("error", error);
         model.addAttribute("contrat", contrat);
-        model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("emplacements", disponiblesUniquement
+                ? emplacementsDisponiblesPourCreation()
+                : emplacementRepository.findAll());
         model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
     }
@@ -127,6 +153,9 @@ public class AdminController {
             @RequestParam(required = false) BigDecimal superficieMax,
             Model model) {
         List<Emplacement> allStores = emplacementRepository.findAll();
+        // Rattrape les emplacements dont le contrat a simplement expiré sans qu'on y touche
+        // (cf. ContratStatusService.rafraichirStatut) avant de filtrer/compter par statut.
+        contratStatusService.rafraichirStatuts(allStores);
 
         List<Emplacement> filteredStores = allStores.stream()
                 .filter(e -> palier == null || e.getPalier() == palier)
@@ -175,6 +204,7 @@ public class AdminController {
     public String storeDetail(@PathVariable Long id, Model model) {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
+        contratStatusService.rafraichirStatut(emplacement);
 
         List<Contrat> contrats = contratRepository.findByEmplacementId(id);
         contrats.sort(Comparator.comparing(Contrat::getDateDebut).reversed());
@@ -187,24 +217,32 @@ public class AdminController {
         return "admin-store-detail";
     }
 
+    // Plusieurs fichiers en un seul envoi (attribut "multiple" côté formulaire) : chaque appel
+    // accumule quand même sur les photos déjà attachées (cf. DocumentJointService.attacher),
+    // rien n'est remplacé.
     @PostMapping("/stores/{id}/photos")
     @PreAuthorize(EDITION_STAFF)
-    public String ajouterPhoto(@PathVariable Long id, @RequestParam MultipartFile photo,
+    public String ajouterPhoto(@PathVariable Long id, @RequestParam("photos") List<MultipartFile> photos,
                                 RedirectAttributes redirectAttributes) throws IOException {
         emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
 
-        if (photo.isEmpty()) {
+        List<MultipartFile> fichiers = photos.stream().filter(p -> !p.isEmpty()).toList();
+        if (fichiers.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Aucune photo sélectionnée.");
             return "redirect:/admin/stores/" + id;
         }
-        String type = photo.getContentType();
-        if (type == null || !type.startsWith("image/")) {
-            redirectAttributes.addFlashAttribute("error", "Le fichier doit être une image.");
-            return "redirect:/admin/stores/" + id;
+        for (MultipartFile photo : fichiers) {
+            String type = photo.getContentType();
+            if (type == null || !type.startsWith("image/")) {
+                redirectAttributes.addFlashAttribute("error", "Chaque fichier doit être une image.");
+                return "redirect:/admin/stores/" + id;
+            }
         }
 
-        documentJointService.attacher("Emplacement", id, photo, "emplacements");
+        for (MultipartFile photo : fichiers) {
+            documentJointService.attacher("Emplacement", id, photo, "emplacements");
+        }
         return "redirect:/admin/stores/" + id;
     }
 
@@ -224,7 +262,13 @@ public class AdminController {
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
             @RequestParam BigDecimal prix,
-            @RequestParam String categorie) throws IOException {
+            @RequestParam String categorie,
+            RedirectAttributes redirectAttributes) throws IOException {
+
+        if (superficie.signum() <= 0 || prix.signum() <= 0) {
+            redirectAttributes.addFlashAttribute("error", "La superficie et le prix doivent être strictement positifs.");
+            return "redirect:/admin/stores/add";
+        }
 
         Emplacement emplacement = new Emplacement();
         emplacement.setName(name);
@@ -265,7 +309,13 @@ public class AdminController {
             @RequestParam BigDecimal superficie,
             @RequestParam BigDecimal prix,
             @RequestParam String categorie,
-            Authentication authentication) {
+            Authentication authentication,
+            RedirectAttributes redirectAttributes) {
+
+        if (superficie.signum() <= 0 || prix.signum() <= 0) {
+            redirectAttributes.addFlashAttribute("error", "La superficie et le prix doivent être strictement positifs.");
+            return "redirect:/admin/stores/edit/" + id;
+        }
 
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -291,9 +341,27 @@ public class AdminController {
         return "redirect:/admin/stores";
     }
 
-    @GetMapping("/stores/delete/{id}")
+    // POST (pas GET) : une suppression est une action destructrice, elle doit passer par le
+    // token CSRF déjà en place sur les formulaires — un lien/image GET en contournerait la
+    // protection CSRF (Spring Security ne protège par défaut que POST/PUT/DELETE/PATCH).
+    //
+    // Un emplacement supprimé entraîne en cascade (JPA cascade=ALL) la suppression de tous ses
+    // contrats, et transitivement de leurs échéances et paiements — potentiellement un
+    // historique financier réel (paiements déjà encaissés). Sans confirmation=true, ce premier
+    // POST ne supprime rien s'il existe un tel historique : il redirige vers la fiche avec un
+    // avertissement explicite, qui propose un second bouton "confirmer=true" pour aller au bout.
+    @PostMapping("/stores/delete/{id}")
     @PreAuthorize(ADMIN_SEUL)
-    public String deleteStore(@PathVariable Long id) {
+    public String deleteStore(@PathVariable Long id, @RequestParam(required = false, defaultValue = "false") boolean confirmer,
+                               RedirectAttributes redirectAttributes) {
+        List<Contrat> contratsLies = contratRepository.findByEmplacementId(id);
+        if (!contratsLies.isEmpty() && !confirmer) {
+            redirectAttributes.addFlashAttribute("warning",
+                    "Cet emplacement a " + contratsLies.size() + " contrat(s) rattaché(s), avec leurs échéances et paiements : "
+                            + "supprimer l'emplacement effacera aussi tout cet historique financier. Confirmer la suppression ?");
+            redirectAttributes.addFlashAttribute("demanderConfirmationSuppression", true);
+            return "redirect:/admin/stores/" + id;
+        }
         emplacementRepository.deleteById(id);
         return "redirect:/admin/stores";
     }
@@ -339,7 +407,7 @@ public class AdminController {
     @PreAuthorize(EDITION_STAFF)
     public String addContractPage(Model model) {
         model.addAttribute("contrat", new Contrat());
-        model.addAttribute("emplacements", emplacementRepository.findAll());
+        model.addAttribute("emplacements", emplacementsDisponiblesPourCreation());
         model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
         return "admin-contract-form";
     }
@@ -376,6 +444,11 @@ public class AdminController {
         LocalDate dateFinParsed = LocalDate.parse(dateFin);
         if (dateDebutParsed.isAfter(dateFinParsed)) {
             return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.",
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+        }
+        if (montantLoyer.signum() <= 0 || montantCaution.signum() <= 0) {
+            return rejectContractForm(model, "Le loyer et la caution doivent être des montants strictement positifs.",
                     contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
                             statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
         }
@@ -519,13 +592,16 @@ public class AdminController {
         LocalDate dateDebutParsed = LocalDate.parse(dateDebut);
         LocalDate dateFinParsed = LocalDate.parse(dateFin);
         if (dateDebutParsed.isAfter(dateFinParsed)) {
-            return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.", contrat);
+            return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.", contrat, false);
+        }
+        if (montantLoyer.signum() <= 0 || montantCaution.signum() <= 0) {
+            return rejectContractForm(model, "Le loyer et la caution doivent être des montants strictement positifs.", contrat, false);
         }
 
         StatutContrat statutEnum = StatutContrat.valueOf(statut);
         if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacementId, contrat.getId())) {
             return rejectContractForm(model,
-                    "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.", contrat);
+                    "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.", contrat, false);
         }
 
         // Le statut RESILIER n'est jamais soumis par le <select> du formulaire générique
@@ -542,7 +618,7 @@ public class AdminController {
         List<Echeance> echeances = new ArrayList<>();
         String erreurEcheances = construireEcheances(periodeCandidate, echeanceDates, echeanceMontants, echeanceTypes, echeances);
         if (erreurEcheances != null) {
-            return rejectContractForm(model, erreurEcheances, contrat);
+            return rejectContractForm(model, erreurEcheances, contrat, false);
         }
 
         contrat.setEmplacement(emplacement);
@@ -598,10 +674,15 @@ public class AdminController {
                 return "La date d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                         + ") est en dehors de la période du contrat.";
             }
+            BigDecimal montantEcheance = new BigDecimal(montantStr.trim());
+            if (montantEcheance.signum() <= 0) {
+                return "Le montant d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                        + ") doit être strictement positif.";
+            }
             Echeance echeance = new Echeance();
             echeance.setContrat(contrat);
             echeance.setDateEcheance(dateEcheance);
-            echeance.setMontantDu(new BigDecimal(montantStr.trim()));
+            echeance.setMontantDu(montantEcheance);
             echeance.setStatut(StatutEcheance.EN_COURS);
             String typeStr = (types != null && i < types.size()) ? types.get(i) : null;
             echeance.setType((typeStr == null || typeStr.isBlank()) ? TypeEcheance.LOYER : TypeEcheance.valueOf(typeStr));
@@ -610,7 +691,8 @@ public class AdminController {
         return null;
     }
 
-    @GetMapping("/contracts/delete/{id}")
+    // POST (pas GET) : voir le commentaire sur deleteStore ci-dessus, même raison.
+    @PostMapping("/contracts/delete/{id}")
     @PreAuthorize(ADMIN_SEUL)
     public String deleteContract(@PathVariable Long id, Authentication authentication) {
         contratRepository.findById(id).ifPresent(contrat -> {
@@ -695,7 +777,7 @@ public class AdminController {
 
     // Client Management
     @GetMapping("/clients")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(LECTURE_STAFF)
     public String clientsPage(@RequestParam(required = false) String search,
                                @RequestParam(required = false) String contratActif, Model model) {
         List<User> clients = (search == null || search.isBlank())
@@ -786,7 +868,7 @@ public class AdminController {
     }
 
     @GetMapping("/clients/{id}")
-    @PreAuthorize(EDITION_STAFF)
+    @PreAuthorize(LECTURE_STAFF)
     public String clientDetail(@PathVariable Long id, Model model) {
         User client = userRepository.findById(id)
                 .filter(u -> u.getRole() == Role.ROLE_LOCATAIRE)

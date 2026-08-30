@@ -6,6 +6,7 @@ import com.sagimo.nezafi.emplacement.StatutEmplacement;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Synchronise le statut d'un {@link Emplacement} avec celui de son {@link Contrat}.
@@ -30,9 +31,11 @@ import java.time.LocalDate;
 public class ContratStatusService {
 
     private final EmplacementRepository emplacementRepository;
+    private final ContratRepository contratRepository;
 
-    public ContratStatusService(EmplacementRepository emplacementRepository) {
+    public ContratStatusService(EmplacementRepository emplacementRepository, ContratRepository contratRepository) {
         this.emplacementRepository = emplacementRepository;
+        this.contratRepository = contratRepository;
     }
 
     /**
@@ -77,5 +80,34 @@ public class ContratStatusService {
         }
         emplacement.setStatut(StatutEmplacement.DISPONIBLE);
         emplacementRepository.save(emplacement);
+    }
+
+    /**
+     * Recalcule paresseusement le statut d'un emplacement à partir de ses contrats actuels —
+     * même pattern que {@link com.sagimo.nezafi.echeance.EcheanceStatusService} : pas de tâche
+     * planifiée, appelé à chaque affichage d'une page emplacements. Comble un trou de
+     * {@link #syncEmplacementStatut(Contrat)} : celui-ci ne s'exécute que sur une action
+     * explicite (création/modification/résiliation/suppression d'un contrat) — un contrat qui
+     * expire simplement, sans qu'on y touche, ne libérait donc jamais son emplacement. Ici, on
+     * vérifie directement si l'emplacement a encore un contrat VALIDER non expiré, peu importe
+     * la dernière action effectuée dessus.
+     */
+    public void rafraichirStatut(Emplacement emplacement) {
+        if (emplacement == null || emplacement.getStatut() == StatutEmplacement.EN_MAINTENANCE) {
+            return;
+        }
+        boolean aUnContratActif = contratRepository.findByEmplacementId(emplacement.getId()).stream()
+                .anyMatch(c -> c.getStatut() == StatutContrat.VALIDER
+                        && (c.getDateFin() == null || !c.getDateFin().isBefore(LocalDate.now())));
+        StatutEmplacement statutAttendu = aUnContratActif ? StatutEmplacement.NON_DISPONIBLE : StatutEmplacement.DISPONIBLE;
+        if (emplacement.getStatut() != statutAttendu) {
+            emplacement.setStatut(statutAttendu);
+            emplacementRepository.save(emplacement);
+        }
+    }
+
+    /** Variante en lot de {@link #rafraichirStatut(Emplacement)}, pour une liste d'emplacements. */
+    public void rafraichirStatuts(List<Emplacement> emplacements) {
+        emplacements.forEach(this::rafraichirStatut);
     }
 }

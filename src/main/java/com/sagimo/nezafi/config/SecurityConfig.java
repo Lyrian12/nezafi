@@ -24,10 +24,20 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            // La console H2 garde son exemption CSRF (son propre flux de formulaires ne porte
+            // pas le jeton CSRF de l'application) — mais elle n'est plus accessible à tous, cf.
+            // hasRole("ADMIN") ci-dessous : accès direct en SQL à toute la base, réservé ADMIN.
             .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/signup", "/signin", "/forgot-password", "/register", "/css/**", "/js/**", "/h2-console/**").permitAll()
+                .requestMatchers("/", "/signup", "/signin", "/forgot-password", "/register", "/css/**", "/js/**").permitAll()
+                // Console H2 : accès direct en SQL à toute la base (y compris les mots de passe
+                // hashés), réservée à ADMIN — elle était avant ouverte à tous sans connexion.
+                // Depuis la bascule PostgreSQL, h2 n'est plus qu'une dépendance de test (pom.xml) :
+                // ce servlet n'est jamais enregistré en exécution réelle, cette règle reste sans
+                // effet (elle protégerait à nouveau la console si h2 redevenait un jour une
+                // dépendance runtime, ex. pour du débogage local).
+                .requestMatchers("/h2-console/**").hasRole("ADMIN")
                 // Règle grossière ici : /admin/staff (gestion des comptes) et /admin/audit
                 // restent ADMIN uniquement via ces deux matchers plus spécifiques, évalués
                 // avant la règle large qui suit. Le détail fin (SECRETARIAT en écriture,
@@ -39,7 +49,10 @@ public class SecurityConfig {
                 // /api/users expose la création/modification de n'importe quel compte (y
                 // compris le rôle) : ADMIN uniquement, plus restrictif que /api/** en général.
                 .requestMatchers("/api/users/**").hasRole("ADMIN")
-                .requestMatchers("/api/**").hasAnyRole("ADMIN", "LOCATAIRE")
+                // /api/contrats accueille maintenant aussi SECRETARIAT (édition) et COMPTABLE
+                // (lecture seule) : le détail fin est tranché dans ContratController lui-même,
+                // cette règle n'est que la barrière grossière laissant passer les 4 rôles.
+                .requestMatchers("/api/**").hasAnyRole("ADMIN", "SECRETARIAT", "COMPTABLE", "LOCATAIRE")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

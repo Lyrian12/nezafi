@@ -29,10 +29,18 @@ public class DocumentJointService {
 
     /** Attache un fichier de plus à l'entité (n'affecte pas les documents déjà attachés). */
     public DocumentJoint attacher(String nomEntite, Long entiteId, MultipartFile fichier, String sousDossier) throws IOException {
+        return attacher(nomEntite, entiteId, null, fichier, sousDossier);
+    }
+
+    /** Variante avec type de document (cf. DocumentJoint.typeDocument) — plusieurs catégories
+     *  de documents possibles pour une même entité, ex. "Contrat" : facture ET scan du contrat. */
+    public DocumentJoint attacher(String nomEntite, Long entiteId, String typeDocument, MultipartFile fichier,
+                                   String sousDossier) throws IOException {
         String chemin = fileStorageService.enregistrer(fichier, sousDossier);
         DocumentJoint document = new DocumentJoint();
         document.setNomEntite(nomEntite);
         document.setEntiteId(entiteId);
+        document.setTypeDocument(typeDocument);
         document.setCheminStockage(chemin);
         return documentJointRepository.save(document);
     }
@@ -44,17 +52,36 @@ public class DocumentJointService {
     @Transactional
     public DocumentJoint remplacerUnique(String nomEntite, Long entiteId, MultipartFile fichier, String sousDossier)
             throws IOException {
-        documentJointRepository.deleteByNomEntiteAndEntiteId(nomEntite, entiteId);
-        return attacher(nomEntite, entiteId, fichier, sousDossier);
+        return remplacerUnique(nomEntite, entiteId, null, fichier, sousDossier);
+    }
+
+    /** Variante avec type de document : ne remplace que le document de CE type pour l'entité
+     *  (ex. remplacer le scan du contrat n'efface pas sa facture, et inversement). */
+    @Transactional
+    public DocumentJoint remplacerUnique(String nomEntite, Long entiteId, String typeDocument, MultipartFile fichier,
+                                          String sousDossier) throws IOException {
+        documentJointRepository.deleteByNomEntiteAndEntiteIdAndTypeDocument(nomEntite, entiteId, typeDocument);
+        return attacher(nomEntite, entiteId, typeDocument, fichier, sousDossier);
     }
 
     public List<DocumentJoint> lister(String nomEntite, Long entiteId) {
         return documentJointRepository.findByNomEntiteAndEntiteIdOrderByAjouteLeDesc(nomEntite, entiteId);
     }
 
+    /** Variante avec type de document. */
+    public List<DocumentJoint> lister(String nomEntite, Long entiteId, String typeDocument) {
+        return documentJointRepository.findByNomEntiteAndEntiteIdAndTypeDocumentOrderByAjouteLeDesc(
+                nomEntite, entiteId, typeDocument);
+    }
+
     /** Le document le plus récent de l'entité, utilisé comme vignette de couverture. */
     public Optional<DocumentJoint> premier(String nomEntite, Long entiteId) {
         return lister(nomEntite, entiteId).stream().findFirst();
+    }
+
+    /** Variante avec type de document. */
+    public Optional<DocumentJoint> premier(String nomEntite, Long entiteId, String typeDocument) {
+        return lister(nomEntite, entiteId, typeDocument).stream().findFirst();
     }
 
     public DocumentJoint trouver(Long id) {

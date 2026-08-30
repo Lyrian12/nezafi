@@ -34,7 +34,9 @@ public class RoleModelAdvice {
         model.addAttribute("estAdmin", estAdmin);
         model.addAttribute("estSecretariat", estSecretariat);
         model.addAttribute("estComptable", estComptable);
-        // Peut créer/modifier (pas les suppressions, réservées à ADMIN seul).
+        // Peut créer/modifier (pas les suppressions, réservées à ADMIN seul) — COMPTABLE est
+        // strictement lecture seule partout, sans aucune exception (retiré des emplacements et
+        // clients où il avait un temps été inclus).
         model.addAttribute("peutModifier", estAdmin || estSecretariat);
     }
 }

@@ -17,6 +17,7 @@ import com.sagimo.nezafi.paiement.PaiementRepository;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -41,18 +42,24 @@ public class DataSeeder implements CommandLineRunner {
     private final EcheanceRepository echeanceRepository;
     private final PaiementRepository paiementRepository;
     private final PasswordEncoder passwordEncoder;
+    // Même logique que DB_URL/DB_USERNAME/DB_PASSWORD (cf. application.properties) : valeur par
+    // défaut qui reproduit le comportement local actuel si la variable d'environnement n'est
+    // pas définie, mais surchargeable en déploiement sans toucher au code.
+    private final String motDePasseAdmin;
 
     private User admin;
 
     public DataSeeder(UserRepository userRepository, EmplacementRepository emplacementRepository,
                        ContratRepository contratRepository, EcheanceRepository echeanceRepository,
-                       PaiementRepository paiementRepository, PasswordEncoder passwordEncoder) {
+                       PaiementRepository paiementRepository, PasswordEncoder passwordEncoder,
+                       @Value("${ADMIN_PASSWORD:admin123}") String motDePasseAdmin) {
         this.userRepository = userRepository;
         this.emplacementRepository = emplacementRepository;
         this.contratRepository = contratRepository;
         this.echeanceRepository = echeanceRepository;
         this.paiementRepository = paiementRepository;
         this.passwordEncoder = passwordEncoder;
+        this.motDePasseAdmin = motDePasseAdmin;
     }
 
     @Override
@@ -152,7 +159,7 @@ public class DataSeeder implements CommandLineRunner {
             a.setPrenom("Admin");
             a.setTelephone("+212600000000");
             a.setEmail("admin@nezafi.com");
-            a.setPassword(passwordEncoder.encode("admin123"));
+            a.setPassword(passwordEncoder.encode(motDePasseAdmin));
             a.setRole(Role.ROLE_ADMIN);
             return userRepository.save(a);
         });
