@@ -47,10 +47,37 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
         </dependency>
+        <!-- Base d'exécution réelle : PostgreSQL (cf. docs/postgresql-migration.md). -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- Migrations versionnées (src/main/resources/db/migration) : remplace ddl-auto=update
+             maintenant que la base est une vraie instance PostgreSQL persistante, pas H2 en
+             mémoire recréée à chaque démarrage. Spring Boot 4 a éclaté l'auto-configuration en
+             modules séparés par techno (spring-boot-jdbc, spring-boot-jpa, ...) : le glue code
+             Spring (FlywayAutoConfiguration) vit dans spring-boot-flyway, distinct de flyway-core
+             lui-même (le moteur Flyway) — les deux sont nécessaires. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+        <!-- H2 ne sert plus qu'aux tests (profil "test", src/test/resources/application-test.
+             properties) : en mémoire, jetable, indépendant de toute instance PostgreSQL locale —
+             mvn test doit pouvoir tourner sans base externe. -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
         <!-- Génération des exports PDF (contrat individuel, rapports contrats/emplacements) :
              bibliothèque légère, pas de dépendance native. -->

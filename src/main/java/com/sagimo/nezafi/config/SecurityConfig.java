@@ -33,6 +33,10 @@ public class SecurityConfig {
                 .requestMatchers("/", "/signup", "/signin", "/forgot-password", "/register", "/css/**", "/js/**").permitAll()
                 // Console H2 : accès direct en SQL à toute la base (y compris les mots de passe
                 // hashés), réservée à ADMIN — elle était avant ouverte à tous sans connexion.
+                // Depuis la bascule PostgreSQL, h2 n'est plus qu'une dépendance de test (pom.xml) :
+                // ce servlet n'est jamais enregistré en exécution réelle, cette règle reste sans
+                // effet (elle protégerait à nouveau la console si h2 redevenait un jour une
+                // dépendance runtime, ex. pour du débogage local).
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
                 // Règle grossière ici : /admin/staff (gestion des comptes) et /admin/audit
                 // restent ADMIN uniquement via ces deux matchers plus spécifiques, évalués
