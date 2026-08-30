@@ -5,6 +5,7 @@ import com.sagimo.nezafi.audit.AuditService;
 import com.sagimo.nezafi.audit.TypeActionAudit;
 import com.sagimo.nezafi.contrat.Contrat;
 import com.sagimo.nezafi.contrat.ContratRepository;
+import com.sagimo.nezafi.contrat.ContratStatusService;
 import com.sagimo.nezafi.paiement.Paiement;
 import com.sagimo.nezafi.paiement.PaiementRepository;
 import com.sagimo.nezafi.storage.DocumentJoint;
@@ -59,19 +60,22 @@ public class EcheanceAdminController {
     private final ContratRepository contratRepository;
     private final UserRepository userRepository;
     private final EcheanceStatusService echeanceStatusService;
+    private final ContratStatusService contratStatusService;
     private final AuditService auditService;
     private final AdminAlertService adminAlertService;
     private final DocumentJointService documentJointService;
 
     public EcheanceAdminController(EcheanceRepository echeanceRepository, PaiementRepository paiementRepository,
                                     ContratRepository contratRepository, UserRepository userRepository,
-                                    EcheanceStatusService echeanceStatusService, AuditService auditService,
-                                    AdminAlertService adminAlertService, DocumentJointService documentJointService) {
+                                    EcheanceStatusService echeanceStatusService, ContratStatusService contratStatusService,
+                                    AuditService auditService, AdminAlertService adminAlertService,
+                                    DocumentJointService documentJointService) {
         this.echeanceRepository = echeanceRepository;
         this.paiementRepository = paiementRepository;
         this.contratRepository = contratRepository;
         this.userRepository = userRepository;
         this.echeanceStatusService = echeanceStatusService;
+        this.contratStatusService = contratStatusService;
         this.auditService = auditService;
         this.adminAlertService = adminAlertService;
         this.documentJointService = documentJointService;
@@ -89,6 +93,9 @@ public class EcheanceAdminController {
     public String contractDetail(@PathVariable Long id, Model model) {
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
+        // Rattrape un contrat VALIDER dont la dateFin est simplement dépassée, sans qu'on y
+        // touche — le statut affiché en en-tête doit refléter EXPIRE, pas rester sur VALIDER.
+        contratStatusService.verifierExpiration(contrat);
 
         List<Echeance> echeances = echeanceRepository.findByContratId(id);
         echeanceStatusService.rafraichirStatuts(echeances);

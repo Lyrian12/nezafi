@@ -157,6 +157,8 @@ public class AdminController {
         // (cf. ContratStatusService.rafraichirStatut) avant de filtrer/compter par statut.
         contratStatusService.rafraichirStatuts(allStores);
 
+        // Tri par défaut par palier (Palier 1, puis 2, puis 3), sans qu'aucun filtre ne soit
+        // nécessaire pour l'obtenir — même ordre que l'export CSV/PDF (EmplacementExportService).
         List<Emplacement> filteredStores = allStores.stream()
                 .filter(e -> palier == null || e.getPalier() == palier)
                 .filter(e -> statut == null || e.getStatut() == statut)
@@ -165,6 +167,8 @@ public class AdminController {
                 .filter(e -> prixMax == null || (e.getPrix() != null && e.getPrix().compareTo(prixMax) <= 0))
                 .filter(e -> superficieMin == null || (e.getSuperficie() != null && e.getSuperficie().compareTo(superficieMin) >= 0))
                 .filter(e -> superficieMax == null || (e.getSuperficie() != null && e.getSuperficie().compareTo(superficieMax) <= 0))
+                .sorted(Comparator.comparingInt((Emplacement e) -> e.getPalier().ordinal())
+                        .thenComparing(Emplacement::getName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
         model.addAttribute("stores", filteredStores);
         model.addAttribute("palierFiltre", palier);
@@ -189,10 +193,16 @@ public class AdminController {
 
         // Un emplacement occupé par un contrat actif est rattaché au client de ce contrat ;
         // s'il y a plusieurs contrats VALIDER pour le même emplacement (cas normalement
-        // impossible en pratique), on garde le premier trouvé.
+        // impossible en pratique), on garde le premier trouvé. Vérifie aussi la dateFin (pas
+        // seulement statut==VALIDER) : sans ça, un contrat VALIDER simplement expiré resterait
+        // affiché comme occupant l'emplacement même après que celui-ci soit repassé DISPONIBLE
+        // (cf. ContratStatusService.rafraichirStatut, qui lui vérifie déjà la dateFin).
+        LocalDate aujourdHui = LocalDate.now();
         Map<Long, User> clientByEmplacementId = new HashMap<>();
         for (Contrat contrat : contratRepository.findByStatut(StatutContrat.VALIDER)) {
-            clientByEmplacementId.putIfAbsent(contrat.getEmplacement().getId(), contrat.getLocataire());
+            if (contrat.getDateFin() == null || !contrat.getDateFin().isBefore(aujourdHui)) {
+                clientByEmplacementId.putIfAbsent(contrat.getEmplacement().getId(), contrat.getLocataire());
+            }
         }
         model.addAttribute("clientByEmplacementId", clientByEmplacementId);
 
@@ -374,6 +384,9 @@ public class AdminController {
             @RequestParam(required = false) String search,
             Model model) {
         List<Contrat> allContracts = contratRepository.findAll();
+        // Rattrape les contrats VALIDER dont la dateFin est simplement dépassée, sans qu'on y
+        // touche (cf. ContratStatusService.verifierExpiration) avant de filtrer/compter par statut.
+        contratStatusService.rafraichirStatutsExpiration(allContracts);
 
         String terme = (search == null || search.isBlank()) ? null : search.trim().toLowerCase();
         List<Contrat> filteredContracts = allContracts.stream()
@@ -534,16 +547,25 @@ public class AdminController {
     /**
      * Un emplacement ne peut pas avoir deux contrats VALIDER actifs simultanément.
      * {@code excludeContratId} permet d'ignorer le contrat en cours d'édition lui-même.
+     * Vérifie aussi la dateFin (pas seulement statut==VALIDER) : un contrat VALIDER dont la
+     * date de fin est dépassée n'a pas forcément encore été rebasculé à EXPIRE (recalcul
+     * paresseux, cf. ContratStatusService.verifierExpiration) — sans cette vérification directe,
+     * il bloquerait à tort la validation d'un nouveau contrat sur un emplacement en réalité libre.
      */
     private boolean aUnAutreContratValide(Long emplacementId, Long excludeContratId) {
+        LocalDate aujourdHui = LocalDate.now();
         return contratRepository.findByEmplacementId(emplacementId).stream()
                 .filter(c -> excludeContratId == null || !c.getId().equals(excludeContratId))
-                .anyMatch(c -> c.getStatut() == StatutContrat.VALIDER);
+                .anyMatch(c -> c.getStatut() == StatutContrat.VALIDER
+                        && (c.getDateFin() == null || !c.getDateFin().isBefore(aujourdHui)));
     }
 
-    /** Un contrat ne peut être renouvelé que s'il est résilié, ou si sa date de fin est dépassée. */
+    /** Un contrat ne peut être renouvelé que s'il est résilié, expiré, ou si sa date de fin est
+     *  dépassée (ce dernier cas couvre aussi un contrat encore VALIDER en base dont le passage à
+     *  EXPIRE n'a pas encore été recalculé — cf. ContratStatusService.verifierExpiration). */
     private boolean peutEtreRenouvele(Contrat contrat) {
         return contrat.getStatut() == StatutContrat.RESILIER
+                || contrat.getStatut() == StatutContrat.EXPIRE
                 || (contrat.getDateFin() != null && contrat.getDateFin().isBefore(LocalDate.now()));
     }
 
@@ -797,9 +819,13 @@ public class AdminController {
         return "admin-clients";
     }
 
+    // Vérifie aussi la dateFin (pas seulement statut==VALIDER), même raison que
+    // aUnAutreContratValide ci-dessus.
     private boolean aUnContratActif(User client) {
+        LocalDate aujourdHui = LocalDate.now();
         return contratRepository.findByLocataireId(client.getId()).stream()
-                .anyMatch(c -> c.getStatut() == StatutContrat.VALIDER);
+                .anyMatch(c -> c.getStatut() == StatutContrat.VALIDER
+                        && (c.getDateFin() == null || !c.getDateFin().isBefore(aujourdHui)));
     }
 
     @GetMapping("/clients/add")

@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -51,10 +52,14 @@ public class EmplacementExportService {
                 .toList();
     }
 
-    /** Contrat VALIDER de l'emplacement, s'il y en a un (au plus un en pratique, cf. règle métier). */
+    /** Contrat VALIDER et non expiré de l'emplacement, s'il y en a un (au plus un en pratique,
+     *  cf. règle métier). Vérifie la dateFin en plus du statut, même raison que partout
+     *  ailleurs : un contrat VALIDER simplement périmé ne compte plus comme actif. */
     private Optional<Contrat> contratActif(Emplacement emplacement) {
+        LocalDate aujourdHui = LocalDate.now();
         return contratRepository.findByEmplacementId(emplacement.getId()).stream()
-                .filter(c -> c.getStatut() == StatutContrat.VALIDER)
+                .filter(c -> c.getStatut() == StatutContrat.VALIDER
+                        && (c.getDateFin() == null || !c.getDateFin().isBefore(aujourdHui)))
                 .findFirst();
     }
 

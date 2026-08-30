@@ -21,11 +21,12 @@ import java.util.List;
  *         l'emplacement n'est pas modifié.</li>
  * </ul>
  *
- * IMPORTANT — À destination du développeur qui ajoutera le futur endpoint de création de
- * contrat (aucun {@code POST /admin/contracts/add} n'existe encore aujourd'hui, seuls
- * edit/delete sont implémentés) : {@link #syncEmplacementStatut(Contrat)} doit être appelée
- * juste après la sauvegarde de tout nouveau contrat, pour appliquer ces mêmes règles dès
- * la création.
+ * {@link #syncEmplacementStatut(Contrat)} est appelée juste après la sauvegarde de tout contrat
+ * (création, édition, résiliation, suppression — cf. AdminController) pour synchroniser
+ * l'emplacement à chaque action explicite. {@link #rafraichirStatut(Emplacement)} comble le trou
+ * laissé par une expiration silencieuse (aucune action admin) : recalcul paresseux, même
+ * principe que {@link #verifierExpiration(Contrat)} ci-dessous pour le statut du contrat
+ * lui-même.
  */
 @Service
 public class ContratStatusService {
@@ -109,5 +110,36 @@ public class ContratStatusService {
     /** Variante en lot de {@link #rafraichirStatut(Emplacement)}, pour une liste d'emplacements. */
     public void rafraichirStatuts(List<Emplacement> emplacements) {
         emplacements.forEach(this::rafraichirStatut);
+    }
+
+    /**
+     * Fait passer un contrat VALIDER dont la dateFin est dépassée à EXPIRE — recalcul
+     * paresseux à l'affichage (liste des contrats, fiche détail), même principe que
+     * {@link #rafraichirStatut(Emplacement)} : pas de tâche planifiée. Choix délibéré plutôt
+     * qu'un batch quotidien : cette application n'a aucune infrastructure de tâche planifiée
+     * (pas de @Scheduled, pas de scheduler configuré) et tous les autres statuts dérivés du
+     * temps (échéances EN_RETARD, statut d'emplacement) suivent déjà ce même principe — en
+     * ajouter un pour ce seul cas casserait la cohérence de l'app sans bénéfice réel : la seule
+     * chose qu'un batch nocturne apporterait de plus, c'est un statut à jour même quand
+     * personne ne consulte le contrat, ce qui n'a aucune valeur pratique ici (rien ne s'abonne
+     * aux changements de statut contrat en dehors de l'affichage lui-même).
+     *
+     * Ne fait rien si le contrat n'est pas VALIDER (les autres statuts sont soit déjà terminaux
+     * — RESILIER, REJETER, EXPIRE — soit EN_ATTENTE, qui n'est jamais automatiquement expiré :
+     * une demande en attente qui traîne reste EN_ATTENTE, elle n'a jamais été activée).
+     */
+    public void verifierExpiration(Contrat contrat) {
+        if (contrat == null || contrat.getStatut() != StatutContrat.VALIDER) {
+            return;
+        }
+        if (contrat.getDateFin() != null && contrat.getDateFin().isBefore(LocalDate.now())) {
+            contrat.setStatut(StatutContrat.EXPIRE);
+            contratRepository.save(contrat);
+        }
+    }
+
+    /** Variante en lot de {@link #verifierExpiration(Contrat)}, pour une liste de contrats. */
+    public void rafraichirStatutsExpiration(List<Contrat> contrats) {
+        contrats.forEach(this::verifierExpiration);
     }
 }

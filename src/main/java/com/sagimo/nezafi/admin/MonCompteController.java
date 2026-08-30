@@ -70,6 +70,7 @@ public class MonCompteController {
             @RequestParam String prenom,
             @RequestParam String telephone,
             @RequestParam(required = false) String email,
+            @RequestParam(required = false) String ancienPassword,
             @RequestParam(required = false) String password,
             Authentication authentication,
             Model model) {
@@ -94,18 +95,32 @@ public class MonCompteController {
             model.addAttribute("membre", membre);
             return "admin-mon-compte";
         }
-        if (password != null && !password.isBlank() && password.length() < 8) {
-            model.addAttribute("error", "Le mot de passe doit contenir au moins 8 caractères.");
-            model.addAttribute("membre", membre);
-            return "admin-mon-compte";
+        boolean changementMotDePasse = password != null && !password.isBlank();
+        if (changementMotDePasse) {
+            if (password.length() < 8) {
+                model.addAttribute("error", "Le mot de passe doit contenir au moins 8 caractères.");
+                model.addAttribute("membre", membre);
+                return "admin-mon-compte";
+            }
+            // L'ancien mot de passe est obligatoire pour changer de mot de passe (mesure de
+            // sécurité) — comparé au hash BCrypt déjà en base via passwordEncoder.matches, jamais
+            // en clair. Aucune vérification requise si l'ancien champ est vide : ça veut dire que
+            // l'utilisateur ne touche pas à son mot de passe (champ "password" resté vide aussi
+            // dans ce cas, donc changementMotDePasse serait déjà false — cette branche n'est
+            // atteinte que lorsqu'un nouveau mot de passe est réellement demandé).
+            if (ancienPassword == null || ancienPassword.isBlank()
+                    || !passwordEncoder.matches(ancienPassword, membre.getPassword())) {
+                model.addAttribute("error", "Ancien mot de passe incorrect — mot de passe inchangé.");
+                model.addAttribute("membre", membre);
+                return "admin-mon-compte";
+            }
         }
 
         membre.setNom(nom);
         membre.setPrenom(prenom);
         membre.setTelephone(trimmedTelephone);
         membre.setEmail(normalizedEmail);
-        boolean motDePasseReinitialise = password != null && !password.isBlank();
-        if (motDePasseReinitialise) {
+        if (changementMotDePasse) {
             membre.setPassword(passwordEncoder.encode(password));
         }
         userRepository.save(membre);
@@ -125,7 +140,7 @@ public class MonCompteController {
         // StaffController pour une réinitialisation faite par un admin sur un autre compte.
         avant.put("motDePasse", "inchangé");
         Map<String, Object> apres = snapshot(membre);
-        apres.put("motDePasse", motDePasseReinitialise ? "réinitialisé" : "inchangé");
+        apres.put("motDePasse", changementMotDePasse ? "réinitialisé" : "inchangé");
         if (!avant.equals(apres)) {
             auditService.enregistrer(membre, TypeActionAudit.MODIFICATION, "MonCompte", membre.getId(), avant, apres);
         }

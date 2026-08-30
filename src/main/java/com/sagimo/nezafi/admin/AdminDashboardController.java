@@ -152,7 +152,11 @@ public class AdminDashboardController {
         List<ClientApercu> apercuClients = clients.stream()
                 .map(c -> {
                     List<Contrat> contratsClient = contratRepository.findByLocataireId(c.getId());
-                    boolean actif = contratsClient.stream().anyMatch(ct -> ct.getStatut() == StatutContrat.VALIDER);
+                    // Vérifie aussi la dateFin (pas seulement statut==VALIDER), même raison que
+                    // partout ailleurs : un contrat VALIDER simplement périmé ne compte plus
+                    // comme actif.
+                    boolean actif = contratsClient.stream().anyMatch(ct -> ct.getStatut() == StatutContrat.VALIDER
+                            && (ct.getDateFin() == null || !ct.getDateFin().isBefore(today)));
                     return new ClientApercu(c, contratsClient.size(), actif);
                 })
                 .toList();
