@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -41,11 +42,22 @@ public class ContratExportService {
         this.contratRepository = contratRepository;
     }
 
+    /** Contrats VALIDER et non expirés — vérifie la dateFin en plus du statut : un contrat
+     *  VALIDER simplement périmé (recalcul paresseux pas encore passé, cf.
+     *  ContratStatusService.verifierExpiration) ne doit pas apparaître dans un rapport de
+     *  contrats "actifs". */
+    private List<Contrat> contratsVraimentActifs() {
+        LocalDate aujourdHui = LocalDate.now();
+        return contratRepository.findByStatut(StatutContrat.VALIDER).stream()
+                .filter(c -> c.getDateFin() == null || !c.getDateFin().isBefore(aujourdHui))
+                .toList();
+    }
+
     // --- CSV -----------------------------------------------------------------------------
 
     /** CSV des contrats VALIDER, interrogé en base à l'instant de l'appel. */
     public byte[] contratsActifsCsv() throws IOException {
-        List<Contrat> contratsActifs = contratRepository.findByStatut(StatutContrat.VALIDER);
+        List<Contrat> contratsActifs = contratsVraimentActifs();
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         PrintWriter writer = new PrintWriter(out, false, StandardCharsets.UTF_8);
@@ -78,7 +90,7 @@ public class ContratExportService {
 
     /** Rapport PDF des contrats VALIDER — mêmes données que {@link #contratsActifsCsv()}. */
     public byte[] contratsActifsPdf() throws DocumentException {
-        List<Contrat> contratsActifs = contratRepository.findByStatut(StatutContrat.VALIDER).stream()
+        List<Contrat> contratsActifs = contratsVraimentActifs().stream()
                 .sorted(Comparator.comparing(c -> c.getEmplacement().getName()))
                 .toList();
 

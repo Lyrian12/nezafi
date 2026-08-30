@@ -26,9 +26,9 @@
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Locataire : <span class="font-semibold" th:text="${contrat.locataire.prenom + ' ' + contrat.locataire.nom}">Locataire</span>
             — <span th:text="${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')} + ' au ' + ${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')}">dates</span>
-            — <span class="inline-flex items-center font-semibold" th:classappend="${contrat.statut.name() == 'VALIDER'} ? 'text-green-700 dark:text-green-400' : (${contrat.statut.name() == 'REJETER'} ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400')">
+            — <span class="inline-flex items-center font-semibold" th:classappend="${contrat.statut.name() == 'VALIDER'} ? 'text-green-700 dark:text-green-400' : ((${contrat.statut.name() == 'REJETER'} or ${contrat.statut.name() == 'EXPIRE'}) ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400')">
                 <span class="w-1.5 h-1.5 rounded-full mr-1.5"
-                      th:classappend="${contrat.statut.name() == 'VALIDER'} ? 'bg-green-500' : (${contrat.statut.name() == 'REJETER'} ? 'bg-red-500' : 'bg-orange-500')"></span>
+                      th:classappend="${contrat.statut.name() == 'VALIDER'} ? 'bg-green-500' : ((${contrat.statut.name() == 'REJETER'} or ${contrat.statut.name() == 'EXPIRE'}) ? 'bg-red-500' : 'bg-orange-500')"></span>
                 <span th:text="${contrat.statut}">STATUT</span>
             </span>
         </p>

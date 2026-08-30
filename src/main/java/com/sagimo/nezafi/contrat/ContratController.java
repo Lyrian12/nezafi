@@ -42,15 +42,18 @@ public class ContratController {
     private final EmplacementRepository emplacementRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final ContratStatusService contratStatusService;
 
     public ContratController(ContratRepository contratRepository,
                             EmplacementRepository emplacementRepository,
                             UserRepository userRepository,
-                            AuditService auditService) {
+                            AuditService auditService,
+                            ContratStatusService contratStatusService) {
         this.contratRepository = contratRepository;
         this.emplacementRepository = emplacementRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.contratStatusService = contratStatusService;
     }
 
     /** Instantané des seuls champs de Contrat suivis par le journal d'audit — mêmes champs
@@ -104,20 +107,30 @@ public class ContratController {
 
     @GetMapping
     public List<Contrat> getAllContrats(Authentication authentication) {
+        List<Contrat> contrats;
         if (estStaffLecture(authentication)) {
-            return contratRepository.findAll();
+            contrats = contratRepository.findAll();
+        } else {
+            // LOCATAIRE (ou tout autre cas) : jamais la liste de tout le monde, uniquement les siens.
+            User user = utilisateurCourant(authentication);
+            contrats = user == null ? List.of() : contratRepository.findByLocataireId(user.getId());
         }
-        // LOCATAIRE (ou tout autre cas) : jamais la liste de tout le monde, uniquement les siens.
-        User user = utilisateurCourant(authentication);
-        return user == null ? List.of() : contratRepository.findByLocataireId(user.getId());
+        // Même recalcul paresseux que côté Thymeleaf (AdminController.contractsPage) : sans ça,
+        // un client de l'API REST verrait un statut VALIDER périmé au lieu d'EXPIRE.
+        contratStatusService.rafraichirStatutsExpiration(contrats);
+        return contrats;
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Contrat> getContratById(@PathVariable Long id, Authentication authentication) {
         return contratRepository.findById(id)
-                .map(contrat -> peutLire(authentication, contrat)
-                        ? ResponseEntity.ok(contrat)
-                        : ResponseEntity.status(HttpStatus.FORBIDDEN).<Contrat>build())
+                .map(contrat -> {
+                    if (!peutLire(authentication, contrat)) {
+                        return ResponseEntity.status(HttpStatus.FORBIDDEN).<Contrat>build();
+                    }
+                    contratStatusService.verifierExpiration(contrat);
+                    return ResponseEntity.ok(contrat);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 

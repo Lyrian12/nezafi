@@ -13,6 +13,7 @@ import com.sagimo.nezafi.emplacement.StatutEmplacement;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -49,9 +50,14 @@ public class AdminAlertService {
                 .toList();
     }
 
+    // Vérifie aussi la dateFin (pas seulement statut==VALIDER) : un contrat VALIDER dont la
+    // dateFin est dépassée mais pas encore rebasculé à EXPIRE (recalcul paresseux, cf.
+    // ContratStatusService.verifierExpiration) ne compte plus comme un contrat actif ici.
     public boolean sansContratActif(Emplacement emplacement) {
+        LocalDate aujourdHui = LocalDate.now();
         return contratRepository.findByEmplacementId(emplacement.getId()).stream()
-                .noneMatch(c -> c.getStatut() == StatutContrat.VALIDER);
+                .noneMatch(c -> c.getStatut() == StatutContrat.VALIDER
+                        && (c.getDateFin() == null || !c.getDateFin().isBefore(aujourdHui)));
     }
 
     /** Contrats dont le total des échéances de type LOYER s'écarte significativement du montantLoyer déclaré. */
