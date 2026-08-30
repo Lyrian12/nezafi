@@ -48,8 +48,14 @@ import java.util.UUID;
 
 @Controller
 @RequestMapping("/admin")
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
+
+    // Cette classe mélange des routes aux droits différents (lecture vs écriture, ADMIN seul
+    // pour les suppressions) : plus de @PreAuthorize de classe unique, chaque méthode porte le
+    // sien. Constantes pour éviter de répéter les mêmes expressions ~20 fois.
+    private static final String LECTURE_STAFF = "hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')";
+    private static final String EDITION_STAFF = "hasAnyRole('ADMIN','SECRETARIAT')";
+    private static final String ADMIN_SEUL = "hasRole('ADMIN')";
 
     private final EmplacementRepository emplacementRepository;
     private final ContratRepository contratRepository;
@@ -110,6 +116,7 @@ public class AdminController {
 
     // Store Management
     @GetMapping("/stores")
+    @PreAuthorize(LECTURE_STAFF)
     public String storesPage(
             @RequestParam(required = false) Palier palier,
             @RequestParam(required = false) StatutEmplacement statut,
@@ -164,6 +171,7 @@ public class AdminController {
     }
 
     @GetMapping("/stores/{id}")
+    @PreAuthorize(LECTURE_STAFF)
     public String storeDetail(@PathVariable Long id, Model model) {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -180,6 +188,7 @@ public class AdminController {
     }
 
     @PostMapping("/stores/{id}/photos")
+    @PreAuthorize(EDITION_STAFF)
     public String ajouterPhoto(@PathVariable Long id, @RequestParam MultipartFile photo,
                                 RedirectAttributes redirectAttributes) throws IOException {
         emplacementRepository.findById(id)
@@ -200,12 +209,14 @@ public class AdminController {
     }
 
     @GetMapping("/stores/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addStorePage(Model model) {
         model.addAttribute("emplacement", new Emplacement());
         return "admin-store-form";
     }
 
     @PostMapping("/stores/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addStore(
             @RequestParam String name,
             @RequestParam(required = false) MultipartFile image,
@@ -236,6 +247,7 @@ public class AdminController {
     }
 
     @GetMapping("/stores/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String editStorePage(@PathVariable Long id, Model model) {
         Emplacement emplacement = emplacementRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -244,6 +256,7 @@ public class AdminController {
     }
 
     @PostMapping("/stores/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String editStore(
             @PathVariable Long id,
             @RequestParam String name,
@@ -279,6 +292,7 @@ public class AdminController {
     }
 
     @GetMapping("/stores/delete/{id}")
+    @PreAuthorize(ADMIN_SEUL)
     public String deleteStore(@PathVariable Long id) {
         emplacementRepository.deleteById(id);
         return "redirect:/admin/stores";
@@ -286,6 +300,7 @@ public class AdminController {
 
     // Contract Management
     @GetMapping("/contracts")
+    @PreAuthorize(LECTURE_STAFF)
     public String contractsPage(
             @RequestParam(required = false) StatutContrat statut,
             @RequestParam(required = false) String search,
@@ -321,6 +336,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addContractPage(Model model) {
         model.addAttribute("contrat", new Contrat());
         model.addAttribute("emplacements", emplacementRepository.findAll());
@@ -329,6 +345,7 @@ public class AdminController {
     }
 
     @PostMapping("/contracts/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addContract(
             @RequestParam Long emplacementId,
             @RequestParam Long locataireId,
@@ -458,6 +475,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String editContractPage(@PathVariable Long id, Model model) {
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
@@ -468,6 +486,7 @@ public class AdminController {
     }
 
     @PostMapping("/contracts/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String editContract(
             @PathVariable Long id,
             @RequestParam Long emplacementId,
@@ -592,6 +611,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/delete/{id}")
+    @PreAuthorize(ADMIN_SEUL)
     public String deleteContract(@PathVariable Long id, Authentication authentication) {
         contratRepository.findById(id).ifPresent(contrat -> {
             Map<String, Object> ancienSnapshot = contratSnapshot(contrat);
@@ -606,6 +626,7 @@ public class AdminController {
     }
 
     @PostMapping("/contracts/{id}/resilier")
+    @PreAuthorize(EDITION_STAFF)
     public String resilierContract(
             @PathVariable Long id,
             @RequestParam String motif,
@@ -638,6 +659,7 @@ public class AdminController {
     }
 
     @GetMapping("/contracts/{id}/renew")
+    @PreAuthorize(EDITION_STAFF)
     public String renewContractPage(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         Contrat ancien = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
@@ -673,6 +695,7 @@ public class AdminController {
 
     // Client Management
     @GetMapping("/clients")
+    @PreAuthorize(EDITION_STAFF)
     public String clientsPage(@RequestParam(required = false) String search,
                                @RequestParam(required = false) String contratActif, Model model) {
         List<User> clients = (search == null || search.isBlank())
@@ -698,12 +721,14 @@ public class AdminController {
     }
 
     @GetMapping("/clients/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addClientPage(Model model) {
         model.addAttribute("client", new User());
         return "admin-client-form";
     }
 
     @PostMapping("/clients/add")
+    @PreAuthorize(EDITION_STAFF)
     public String addClient(
             @RequestParam String nom,
             @RequestParam String prenom,
@@ -761,6 +786,7 @@ public class AdminController {
     }
 
     @GetMapping("/clients/{id}")
+    @PreAuthorize(EDITION_STAFF)
     public String clientDetail(@PathVariable Long id, Model model) {
         User client = userRepository.findById(id)
                 .filter(u -> u.getRole() == Role.ROLE_LOCATAIRE)

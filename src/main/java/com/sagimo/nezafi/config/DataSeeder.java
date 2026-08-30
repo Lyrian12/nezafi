@@ -58,6 +58,7 @@ public class DataSeeder implements CommandLineRunner {
     @Override
     public void run(String... args) {
         admin = seedAdmin();
+        seedPersonnel();
 
         if (emplacementRepository.count() > 0) {
             // Déjà seedé (redémarrage sans perte de la DB en mémoire) : rien à refaire.
@@ -154,6 +155,31 @@ public class DataSeeder implements CommandLineRunner {
             a.setPassword(passwordEncoder.encode("admin123"));
             a.setRole(Role.ROLE_ADMIN);
             return userRepository.save(a);
+        });
+    }
+
+    /** Comptes de test pour les rôles personnel, mots de passe simples à retenir pour la
+     *  démo/QA — voir {@link com.sagimo.nezafi.user.Role} pour le détail des permissions. */
+    private void seedPersonnel() {
+        userRepository.findByEmail("secretariat@nezafi.com").orElseGet(() -> {
+            User secretariat = new User();
+            secretariat.setNom("Nezafi");
+            secretariat.setPrenom("Secrétariat");
+            secretariat.setTelephone("+212600000001");
+            secretariat.setEmail("secretariat@nezafi.com");
+            secretariat.setPassword(passwordEncoder.encode("secretariat123"));
+            secretariat.setRole(Role.ROLE_SECRETARIAT);
+            return userRepository.save(secretariat);
+        });
+        userRepository.findByEmail("comptable@nezafi.com").orElseGet(() -> {
+            User comptable = new User();
+            comptable.setNom("Nezafi");
+            comptable.setPrenom("Comptable");
+            comptable.setTelephone("+212600000002");
+            comptable.setEmail("comptable@nezafi.com");
+            comptable.setPassword(passwordEncoder.encode("comptable123"));
+            comptable.setRole(Role.ROLE_COMPTABLE);
+            return userRepository.save(comptable);
         });
     }
 

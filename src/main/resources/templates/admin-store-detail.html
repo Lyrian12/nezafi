@@ -24,7 +24,7 @@
         <a th:href="@{/admin/stores}" class="text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300">← Retour aux emplacements</a>
         <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mt-4" th:text="${emplacement.name}">Emplacement</h1>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" th:text="'ID: ' + ${emplacement.id}">ID: 1</p>
-        <a th:href="@{/admin/stores/edit/{id}(id=${emplacement.id})}"
+        <a th:if="${peutModifier}" th:href="@{/admin/stores/edit/{id}(id=${emplacement.id})}"
            class="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300 underline">
             <span class="w-3.5 h-3.5" th:insert="~{fragments/icons :: pencil}"></span>
             Modifier l'emplacement
@@ -43,7 +43,7 @@
 
         <div th:if="${#lists.isEmpty(photos)}" class="text-center py-8">
             <p class="text-sm text-slate-400 dark:text-slate-500 mb-4">Aucune photo</p>
-            <form th:action="@{/admin/stores/{id}/photos(id=${emplacement.id})}" method="post" enctype="multipart/form-data" class="inline-flex items-center gap-2">
+            <form th:if="${peutModifier}" th:action="@{/admin/stores/{id}/photos(id=${emplacement.id})}" method="post" enctype="multipart/form-data" class="inline-flex items-center gap-2">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                 <input type="file" name="photo" accept="image/*" required
                        class="text-xs text-slate-600 dark:text-slate-300 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-white dark:file:bg-slate-700">
@@ -60,7 +60,7 @@
                     <img th:src="@{/files/documents/{id}(id=${photo.id})}" alt="Photo de l'emplacement" class="w-full h-full object-cover">
                 </a>
             </div>
-            <form th:action="@{/admin/stores/{id}/photos(id=${emplacement.id})}" method="post" enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
+            <form th:if="${peutModifier}" th:action="@{/admin/stores/{id}/photos(id=${emplacement.id})}" method="post" enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                 <input type="file" name="photo" accept="image/*" required
                        class="text-xs text-slate-600 dark:text-slate-300 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-white dark:file:bg-slate-700">
@@ -103,7 +103,7 @@
                                 </span>
                             </td>
                             <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                                <a th:href="@{/admin/clients/{id}(id=${contrat.locataire.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Client</a>
+                                <a th:if="${!estComptable}" th:href="@{/admin/clients/{id}(id=${contrat.locataire.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Client</a>
                                 <a th:href="@{/admin/contracts/{id}(id=${contrat.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Contrat</a>
                             </td>
                         </tr>

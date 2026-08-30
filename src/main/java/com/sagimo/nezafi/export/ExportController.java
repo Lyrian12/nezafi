@@ -19,7 +19,9 @@ import java.io.IOException;
  */
 @Controller
 @RequestMapping("/admin")
-@PreAuthorize("hasRole('ADMIN')")
+// Tous les exports de cette classe sont en lecture seule : mêmes droits que les pages qu'ils
+// exportent (contrats/emplacements consultables par ADMIN, SECRETARIAT, COMPTABLE).
+@PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')")
 public class ExportController {
 
     private final ContratRepository contratRepository;

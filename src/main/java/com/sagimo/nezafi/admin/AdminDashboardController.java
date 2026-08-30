@@ -19,6 +19,7 @@ import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,7 +48,10 @@ import java.util.Map;
  */
 @Controller
 @RequestMapping("/admin")
-@PreAuthorize("hasRole('ADMIN')")
+// SECRETARIAT y accède aussi (occupation, alertes, aperçus utiles au quotidien) mais sans le
+// bloc "Journal d'audit" — masqué dans la vue, cf. le paramètre estAdmin ci-dessous. Pas
+// COMPTABLE : ce tableau de bord est explicitement hors de son périmètre.
+@PreAuthorize("hasAnyRole('ADMIN','SECRETARIAT')")
 public class AdminDashboardController {
 
     // Fenêtre du graphique d'encaissements : les 6 derniers mois glissants, mois courant inclus.
@@ -83,7 +87,11 @@ public class AdminDashboardController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(@RequestParam(required = false) Long emplacementId, Model model) {
+    public String dashboard(@RequestParam(required = false) Long emplacementId, Model model,
+                             Authentication authentication) {
+        boolean estAdmin = authentication.getAuthorities().stream()
+                .anyMatch(autorite -> autorite.getAuthority().equals("ROLE_ADMIN"));
+        model.addAttribute("estAdmin", estAdmin);
         // Alertes de cohérence (mêmes règles que l'ancien widget de /admin/stores)
         model.addAttribute("emplacementsOrphelins", adminAlertService.emplacementsNonDisponiblesSansContratActif());
         model.addAttribute("contratsEcartLoyer", adminAlertService.contratsAvecEcartLoyerSignificatif());
@@ -149,11 +157,14 @@ public class AdminDashboardController {
         model.addAttribute("echeancesApercu", echeancesApercu);
         model.addAttribute("totalPayeParEcheance", totalPayeParEcheance);
 
-        // Journal d'audit : dernières entrées.
-        List<JournalAudit> dernieresEntreesAudit = journalAuditRepository.findAllByOrderByDateActionDesc().stream()
-                .limit(6)
-                .toList();
-        model.addAttribute("dernieresEntreesAudit", dernieresEntreesAudit);
+        // Journal d'audit : dernières entrées — réservé à ADMIN (estAdmin), SECRETARIAT n'a
+        // pas accès au journal d'audit ; le bloc correspondant est masqué côté template.
+        if (estAdmin) {
+            List<JournalAudit> dernieresEntreesAudit = journalAuditRepository.findAllByOrderByDateActionDesc().stream()
+                    .limit(6)
+                    .toList();
+            model.addAttribute("dernieresEntreesAudit", dernieresEntreesAudit);
+        }
 
         // Encaissements réellement payés par mois (pas le loyer affiché), filtrables par
         // emplacement — remplace l'ancien "revenueToday" (qui ne mesurait qu'un loyer théorique).

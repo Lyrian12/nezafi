@@ -3,6 +3,7 @@ package com.sagimo.nezafi.config;
 import com.sagimo.nezafi.user.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.userdetails.User;
@@ -14,6 +15,10 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+// Indispensable pour que les @PreAuthorize posés sur les méthodes de contrôleur (droits fins
+// par route : lecture/écriture/ADMIN seul) soient réellement évalués — sans cette annotation,
+// ils sont silencieusement ignorés et seule la règle grossière de /admin/** ci-dessous compte.
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -23,8 +28,17 @@ public class SecurityConfig {
             .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/", "/signup", "/signin", "/forgot-password", "/register", "/css/**", "/js/**", "/h2-console/**").permitAll()
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+                // Règle grossière ici : /admin/staff (gestion des comptes) et /admin/audit
+                // restent ADMIN uniquement via ces deux matchers plus spécifiques, évalués
+                // avant la règle large qui suit. Le détail fin (SECRETARIAT en écriture,
+                // COMPTABLE en lecture seule) est ensuite tranché route par route avec
+                // @PreAuthorize sur chaque méthode de contrôleur.
+                .requestMatchers("/admin/staff/**", "/admin/audit").hasRole("ADMIN")
+                .requestMatchers("/admin/**").hasAnyRole("ADMIN", "SECRETARIAT", "COMPTABLE")
                 .requestMatchers("/shops/**", "/contracts/**").hasRole("LOCATAIRE")
+                // /api/users expose la création/modification de n'importe quel compte (y
+                // compris le rôle) : ADMIN uniquement, plus restrictif que /api/** en général.
+                .requestMatchers("/api/users/**").hasRole("ADMIN")
                 .requestMatchers("/api/**").hasAnyRole("ADMIN", "LOCATAIRE")
                 .anyRequest().authenticated()
             )
