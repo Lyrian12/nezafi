@@ -95,7 +95,11 @@
                 <span class="w-4 h-4 shrink-0" th:insert="~{fragments/icons :: fileText}"></span>
                 <span th:text="${factureNomAffiche}">facture.pdf</span>
             </span>
-            <a th:href="@{/admin/contracts/{id}/facture(id=${contrat.id})}" class="font-bold text-slate-600 dark:text-slate-300 hover:underline">Télécharger</a>
+            <span class="space-x-3">
+                <button type="button" th:onclick="'apercuDocument(\'' + @{/admin/contracts/{id}/facture(id=${contrat.id},apercu=true)} + '\')'"
+                        class="font-bold text-slate-600 dark:text-slate-300 hover:underline">Aperçu</button>
+                <a th:href="@{/admin/contracts/{id}/facture(id=${contrat.id})}" class="font-bold text-slate-600 dark:text-slate-300 hover:underline">Télécharger</a>
+            </span>
         </div>
         <div th:if="${factureNomAffiche == null}" class="text-xs text-slate-400 dark:text-slate-500 mb-4">
             Aucune facture de paiement attachée pour l'instant.
@@ -107,6 +111,38 @@
                     <span th:text="${factureNomAffiche != null} ? 'Remplacer le fichier (PDF ou image)' : 'Fichier (PDF ou image) *'">Fichier</span>
                 </label>
                 <input type="file" name="facture" accept="application/pdf,image/*" required
+                       class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-100 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-white dark:file:bg-slate-700 focus:outline-none focus:border-slate-400">
+            </div>
+            <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-2 px-4 rounded-xl transition-colors text-xs">
+                Envoyer
+            </button>
+        </form>
+    </div>
+
+    <!-- Scan du contrat signé -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Scan du contrat signé</h2>
+        <div th:if="${scanNomAffiche != null}" class="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-xl px-4 py-3 mb-4 text-xs">
+            <span class="inline-flex items-center gap-2 text-slate-700 dark:text-slate-200">
+                <span class="w-4 h-4 shrink-0" th:insert="~{fragments/icons :: fileText}"></span>
+                <span th:text="${scanNomAffiche}">contrat-signe.pdf</span>
+            </span>
+            <span class="space-x-3">
+                <button type="button" th:onclick="'apercuDocument(\'' + @{/admin/contracts/{id}/scan(id=${contrat.id},apercu=true)} + '\')'"
+                        class="font-bold text-slate-600 dark:text-slate-300 hover:underline">Aperçu</button>
+                <a th:href="@{/admin/contracts/{id}/scan(id=${contrat.id})}" class="font-bold text-slate-600 dark:text-slate-300 hover:underline">Télécharger</a>
+            </span>
+        </div>
+        <div th:if="${scanNomAffiche == null}" class="text-xs text-slate-400 dark:text-slate-500 mb-4">
+            Aucun scan du contrat signé attaché pour l'instant.
+        </div>
+        <form th:if="${peutModifier}" th:action="@{/admin/contracts/{id}/scan(id=${contrat.id})}" method="post" enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <div class="flex-grow min-w-[240px]">
+                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">
+                    <span th:text="${scanNomAffiche != null} ? 'Remplacer le fichier (PDF ou image)' : 'Fichier (PDF ou image) *'">Fichier</span>
+                </label>
+                <input type="file" name="scan" accept="application/pdf,image/*" required
                        class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-100 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-bold file:bg-slate-900 file:text-white dark:file:bg-slate-700 focus:outline-none focus:border-slate-400">
             </div>
             <button type="submit" class="bg-[#ccff00] hover:bg-[#b8e600] text-slate-900 font-bold py-2 px-4 rounded-xl transition-colors text-xs">
@@ -172,8 +208,10 @@
                         le <span th:text="${#temporals.format(paiement.datePaiement, 'dd-MM-yyyy')}">01-01-2026</span>
                         — enregistré par <span th:text="${paiement.adminEnregistrant.prenom + ' ' + paiement.adminEnregistrant.nom}">Admin</span>
                     </span>
-                    <span th:if="${recuParPaiement.get(paiement.id)}">
-                        <a th:href="@{/admin/paiements/{id}/recu(id=${paiement.id})}" target="_blank" class="text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100">Reçu</a>
+                    <span th:if="${recuParPaiement.get(paiement.id)}" class="space-x-2">
+                        <button type="button" th:onclick="'apercuDocument(\'' + @{/admin/paiements/{id}/recu(id=${paiement.id},apercu=true)} + '\')'"
+                                class="text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100">Aperçu</button>
+                        <a th:href="@{/admin/paiements/{id}/recu(id=${paiement.id})}" class="text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100">Reçu</a>
                     </span>
                 </div>
             </div>
@@ -204,6 +242,9 @@
     </div>
 
 </main>
+
+<div th:replace="~{fragments/document-preview :: modal}"></div>
+<th:block th:replace="~{fragments/document-preview :: script}"></th:block>
 
 </body>
 </html>

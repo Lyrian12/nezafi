@@ -9,6 +9,7 @@ import com.sagimo.nezafi.paiement.Paiement;
 import com.sagimo.nezafi.paiement.PaiementRepository;
 import com.sagimo.nezafi.storage.DocumentJoint;
 import com.sagimo.nezafi.storage.DocumentJointService;
+import com.sagimo.nezafi.storage.TypeDocumentJoint;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
@@ -113,8 +114,10 @@ public class EcheanceAdminController {
         // Alerte non bloquante, contextuelle à cette fiche : écart significatif entre le
         // total des échéances LOYER et le montantLoyer déclaré sur le contrat.
         model.addAttribute("ecartLoyerSignificatif", adminAlertService.ecartLoyerSignificatif(contrat));
-        documentJointService.premier("Contrat", id)
+        documentJointService.premier("Contrat", id, TypeDocumentJoint.FACTURE.name())
                 .ifPresent(facture -> model.addAttribute("factureNomAffiche", documentJointService.nomOriginal(facture)));
+        documentJointService.premier("Contrat", id, TypeDocumentJoint.CONTRAT_SCANNE.name())
+                .ifPresent(scan -> model.addAttribute("scanNomAffiche", documentJointService.nomOriginal(scan)));
         return "admin-contract-detail";
     }
 
@@ -123,45 +126,88 @@ public class EcheanceAdminController {
     public String uploaderFacturePaiement(@PathVariable Long id, @RequestParam MultipartFile facture,
                                            Authentication authentication, RedirectAttributes redirectAttributes)
             throws IOException {
-        contratRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Contract not found"));
-
-        if (facture.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Aucun fichier sélectionné.");
-            return "redirect:/admin/contracts/" + id;
-        }
-        String type = facture.getContentType();
-        boolean typeAccepte = type != null && (type.equals(MediaType.APPLICATION_PDF_VALUE) || type.startsWith("image/"));
-        if (!typeAccepte) {
-            redirectAttributes.addFlashAttribute("error", "La facture doit être un PDF ou une image.");
-            return "redirect:/admin/contracts/" + id;
-        }
-
-        boolean remplacement = !documentJointService.lister("Contrat", id).isEmpty();
-        DocumentJoint document = documentJointService.remplacerUnique("Contrat", id, facture, "contrats");
-
-        User admin = currentAdmin(authentication);
-        auditService.enregistrer(admin, remplacement ? TypeActionAudit.MODIFICATION : TypeActionAudit.CREATION,
-                "FactureContrat", id, null, Map.of("fichier", documentJointService.nomOriginal(document)));
-
-        return "redirect:/admin/contracts/" + id;
+        return uploaderDocumentContrat(id, facture, TypeDocumentJoint.FACTURE, "La facture",
+                authentication, redirectAttributes);
     }
 
     @GetMapping("/contracts/{id}/facture")
     @PreAuthorize(LECTURE_STAFF)
-    public void telechargerFacturePaiement(@PathVariable Long id, HttpServletResponse response) throws IOException {
-        Optional<DocumentJoint> facture = documentJointService.premier("Contrat", id);
-        if (facture.isEmpty()) {
+    public void telechargerFacturePaiement(@PathVariable Long id,
+                                            @RequestParam(required = false, defaultValue = "false") boolean apercu,
+                                            HttpServletResponse response) throws IOException {
+        telechargerDocumentContrat(id, TypeDocumentJoint.FACTURE, apercu, response);
+    }
+
+    @PostMapping("/contracts/{id}/scan")
+    @PreAuthorize(EDITION_STAFF)
+    public String uploaderScanContrat(@PathVariable Long id, @RequestParam MultipartFile scan,
+                                       Authentication authentication, RedirectAttributes redirectAttributes)
+            throws IOException {
+        return uploaderDocumentContrat(id, scan, TypeDocumentJoint.CONTRAT_SCANNE, "Le scan du contrat",
+                authentication, redirectAttributes);
+    }
+
+    @GetMapping("/contracts/{id}/scan")
+    @PreAuthorize(LECTURE_STAFF)
+    public void telechargerScanContrat(@PathVariable Long id,
+                                        @RequestParam(required = false, defaultValue = "false") boolean apercu,
+                                        HttpServletResponse response) throws IOException {
+        telechargerDocumentContrat(id, TypeDocumentJoint.CONTRAT_SCANNE, apercu, response);
+    }
+
+    /** Logique commune aux deux catégories de document de contrat (facture, scan) — seul le
+     *  type et le libellé d'erreur changent selon l'appelant. */
+    private String uploaderDocumentContrat(Long id, MultipartFile fichier, TypeDocumentJoint typeDocument,
+                                            String libelle, Authentication authentication,
+                                            RedirectAttributes redirectAttributes) throws IOException {
+        contratRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Contract not found"));
+
+        if (fichier.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Aucun fichier sélectionné.");
+            return "redirect:/admin/contracts/" + id;
+        }
+        String type = fichier.getContentType();
+        boolean typeAccepte = type != null && (type.equals(MediaType.APPLICATION_PDF_VALUE) || type.startsWith("image/"));
+        if (!typeAccepte) {
+            redirectAttributes.addFlashAttribute("error", libelle + " doit être un PDF ou une image.");
+            return "redirect:/admin/contracts/" + id;
+        }
+
+        boolean remplacement = !documentJointService.lister("Contrat", id, typeDocument.name()).isEmpty();
+        DocumentJoint document = documentJointService.remplacerUnique("Contrat", id, typeDocument.name(), fichier, "contrats");
+
+        User admin = currentAdmin(authentication);
+        auditService.enregistrer(admin, remplacement ? TypeActionAudit.MODIFICATION : TypeActionAudit.CREATION,
+                typeDocument == TypeDocumentJoint.FACTURE ? "FactureContrat" : "ScanContrat", id, null,
+                Map.of("fichier", documentJointService.nomOriginal(document)));
+
+        return "redirect:/admin/contracts/" + id;
+    }
+
+    /** Sert un document de contrat en téléchargement (Content-Disposition: attachment, défaut —
+     *  comportement historique, ne casse aucun lien "Télécharger" déjà en place) ou en aperçu
+     *  (?apercu=true → Content-Disposition: inline, le navigateur affiche au lieu de forcer
+     *  l'enregistrement). */
+    private void telechargerDocumentContrat(Long id, TypeDocumentJoint typeDocument, boolean apercu,
+                                             HttpServletResponse response) throws IOException {
+        Optional<DocumentJoint> document = documentJointService.premier("Contrat", id, typeDocument.name());
+        if (document.isEmpty()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
+        ecrireDocument(response, document.get(), apercu);
+    }
 
-        Resource ressource = documentJointService.charger(facture.get());
-        String nomAffiche = documentJointService.nomOriginal(facture.get());
+    /** Écrit un DocumentJoint en réponse HTTP — factorisé pour que facture/scan/reçu servent
+     *  le même en-tête Content-Disposition (inline vs attachment) de la même façon. */
+    private void ecrireDocument(HttpServletResponse response, DocumentJoint document, boolean apercu) throws IOException {
+        Resource ressource = documentJointService.charger(document);
+        String nomAffiche = documentJointService.nomOriginal(document);
         MediaType type = MediaTypeFactory.getMediaType(ressource).orElse(MediaType.APPLICATION_OCTET_STREAM);
 
         response.setContentType(type.toString());
-        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''"
+        response.setHeader("Content-Disposition", (apercu ? "inline" : "attachment") + "; filename*=UTF-8''"
                 + URLEncoder.encode(nomAffiche, StandardCharsets.UTF_8).replace("+", "%20"));
         response.getOutputStream().write(ressource.getContentAsByteArray());
     }
@@ -225,21 +271,15 @@ public class EcheanceAdminController {
 
     @GetMapping("/paiements/{id}/recu")
     @PreAuthorize(LECTURE_STAFF)
-    public void telechargerRecuPaiement(@PathVariable Long id, HttpServletResponse response) throws IOException {
+    public void telechargerRecuPaiement(@PathVariable Long id,
+                                         @RequestParam(required = false, defaultValue = "false") boolean apercu,
+                                         HttpServletResponse response) throws IOException {
         Optional<DocumentJoint> recu = documentJointService.premier("Paiement", id);
         if (recu.isEmpty()) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
         }
-
-        Resource ressource = documentJointService.charger(recu.get());
-        String nomAffiche = documentJointService.nomOriginal(recu.get());
-        MediaType type = MediaTypeFactory.getMediaType(ressource).orElse(MediaType.APPLICATION_OCTET_STREAM);
-
-        response.setContentType(type.toString());
-        response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''"
-                + URLEncoder.encode(nomAffiche, StandardCharsets.UTF_8).replace("+", "%20"));
-        response.getOutputStream().write(ressource.getContentAsByteArray());
+        ecrireDocument(response, recu.get(), apercu);
     }
 
     @GetMapping("/echeances")

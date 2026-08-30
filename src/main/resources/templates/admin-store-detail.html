@@ -58,11 +58,20 @@
         </div>
 
         <div th:if="${not #lists.isEmpty(photos)}">
+            <!-- Clic sur la vignette = aperçu (modale) ; icône de téléchargement en surimpression
+                 = enregistrement forcé (?telecharger=true, cf. FileController). -->
             <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mb-4">
-                <a th:each="photo : ${photos}" th:href="@{/files/documents/{id}(id=${photo.id})}" target="_blank"
-                   class="block aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:opacity-80 transition-opacity">
-                    <img th:src="@{/files/documents/{id}(id=${photo.id})}" alt="Photo de l'emplacement" class="w-full h-full object-cover">
-                </a>
+                <div th:each="photo : ${photos}" class="relative aspect-square rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                    <button type="button" th:onclick="'apercuDocument(\'' + @{/files/documents/{id}(id=${photo.id})} + '\')'"
+                            class="block w-full h-full" title="Aperçu" aria-label="Aperçu">
+                        <img th:src="@{/files/documents/{id}(id=${photo.id})}" alt="Photo de l'emplacement" class="w-full h-full object-cover hover:opacity-80 transition-opacity">
+                    </button>
+                    <a th:href="@{/files/documents/{id}(id=${photo.id},telecharger=true)}"
+                       class="absolute bottom-1 right-1 w-6 h-6 flex items-center justify-center rounded-lg bg-black/60 text-white hover:bg-black/80 transition-colors"
+                       title="Télécharger" aria-label="Télécharger">
+                        <span class="w-3.5 h-3.5" th:insert="~{fragments/icons :: download}"></span>
+                    </a>
+                </div>
             </div>
             <form th:if="${peutModifier}" th:action="@{/admin/stores/{id}/photos(id=${emplacement.id})}" method="post" enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -174,6 +183,9 @@
     </div>
 
 </main>
+
+<div th:replace="~{fragments/document-preview :: modal}"></div>
+<th:block th:replace="~{fragments/document-preview :: script}"></th:block>
 
 </body>
 </html>

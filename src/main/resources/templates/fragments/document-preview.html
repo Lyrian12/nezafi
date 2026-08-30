@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- Modale d'aperçu de document (facture, scan de contrat, reçu de paiement, photo
+     d'emplacement) : un seul <iframe> pour les deux types de fichiers possibles (PDF ou image) —
+     le navigateur affiche nativement l'un comme l'autre dans une iframe, pas besoin de détecter
+     le type côté template. À inclure une fois par page via :
+       <div th:replace="~{fragments/document-preview :: modal}"></div>
+     Chaque bouton "Aperçu" appelle apercuDocument('/chemin/vers/le/document?apercu=true') —
+     l'URL DOIT répondre avec Content-Disposition: inline, sinon le navigateur télécharge le
+     fichier au lieu de l'afficher dans l'iframe. -->
+<div th:fragment="modal" id="apercu-modal" hidden
+     class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 md:p-10"
+     onclick="if(event.target===this) fermerApercu();">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 w-full max-w-4xl h-full flex flex-col overflow-hidden">
+        <div class="flex justify-between items-center px-4 py-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+            <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aperçu</p>
+            <button type="button" onclick="fermerApercu()"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    aria-label="Fermer l'aperçu">
+                <span class="w-4 h-4" th:insert="~{fragments/icons :: close}"></span>
+            </button>
+        </div>
+        <iframe id="apercu-frame" src="" title="Aperçu du document" class="flex-1 w-full border-0 bg-slate-50 dark:bg-slate-950"></iframe>
+    </div>
+</div>
+<script th:fragment="script">
+    function apercuDocument(url) {
+        document.getElementById('apercu-frame').src = url;
+        document.getElementById('apercu-modal').hidden = false;
+    }
+    function fermerApercu() {
+        document.getElementById('apercu-modal').hidden = true;
+        document.getElementById('apercu-frame').src = '';
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') fermerApercu();
+    });
+</script>
+
+</body>
+</html>

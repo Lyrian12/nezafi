@@ -14,9 +14,10 @@ import java.time.LocalDateTime;
  * {@code nomEntite} + {@code entiteId} identifient l'entité propriétaire ("Emplacement",
  * "Contrat"...), sans relation JPA directe pour rester générique.
  *
- * Pas de champ "type de document" pour l'instant : à ce stade, nomEntite suffit à distinguer
- * une photo d'emplacement d'une facture de contrat. À réévaluer si une même entité a un jour
- * besoin de plusieurs catégories de documents.
+ * {@code typeDocument} distingue plusieurs catégories de documents pour une même entité (ex :
+ * "Contrat" peut avoir à la fois une facture et un scan du contrat signé, cf.
+ * {@link TypeDocumentJoint}) — {@code null} tant qu'une seule catégorie est possible pour
+ * l'entité (photos d'emplacement, reçu de paiement).
  */
 @Entity
 @Table(name = "documents_joints")
@@ -33,6 +34,8 @@ public class DocumentJoint {
 
     @Column(nullable = false)
     private Long entiteId;
+
+    private String typeDocument;
 
     // Chemin relatif tel que renvoyé par FileStorageService.enregistrer(...).
     @Column(nullable = false)
