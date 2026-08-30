@@ -42,3 +42,5 @@ cookies.txt
 ### Fichiers uploadés (photos d'emplacements, factures de contrat) — stockage local, jamais suivi ###
 /uploads/
 .DS_Store
+
+.env
