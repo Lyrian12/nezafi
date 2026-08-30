@@ -151,8 +151,11 @@
         </form>
     </div>
 
-    <!-- Résiliation -->
-    <div th:if="${peutModifier and (contrat.statut == null || contrat.statut.name() != 'RESILIER')}" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
+    <!-- Résiliation — n'a de sens que sur un contrat encore en cours (VALIDER) ou en attente de
+         validation (EN_ATTENTE) : masqué sur RESILIER (déjà résilié), REJETER (jamais validé) et
+         EXPIRE (déjà terminé par écoulement du temps, cf. StatutContrat) — aucun de ces statuts
+         terminaux n'appelle une action de résiliation. -->
+    <div th:if="${peutModifier and (contrat.statut == null || (contrat.statut.name() != 'RESILIER' and contrat.statut.name() != 'REJETER' and contrat.statut.name() != 'EXPIRE'))}" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
         <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Résilier ce contrat</h2>
         <form th:action="@{/admin/contracts/{id}/resilier(id=${contrat.id})}" method="post" class="flex flex-wrap gap-3 items-end">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
