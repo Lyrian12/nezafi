@@ -741,14 +741,10 @@ public class AdminController {
         // l'était déjà avant cette édition, via le champ caché dédié du template.
         Map<String, Object> ancienSnapshot = contratSnapshot(contrat);
 
-        // Validation des échéances contre la nouvelle période avant toute modification de
-        // l'entité gérée (JPA) : on valide sur une copie de travail des dates, pas sur
-        // `contrat` lui-même, pour ne rien modifier en base si le formulaire est rejeté.
-        Contrat periodeCandidate = new Contrat();
-        periodeCandidate.setDateDebut(dateDebutParsed);
-        periodeCandidate.setDateFin(dateFinParsed);
+        // Construit les nouvelles échéances avant toute modification de l'entité gérée (JPA),
+        // pour ne rien écrire en base si le formulaire est finalement rejeté (montant invalide).
         List<Echeance> echeances = new ArrayList<>();
-        String erreurEcheances = construireEcheances(periodeCandidate, echeanceDates, echeanceMontants, echeanceTypes, echeances);
+        String erreurEcheances = construireEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes, echeances);
         if (erreurEcheances != null) {
             return rejectContractForm(model, erreurEcheances, contrat, false);
         }
@@ -768,7 +764,9 @@ public class AdminController {
         contrat.setDatePreavis((datePreavis == null || datePreavis.isBlank()) ? null : LocalDate.parse(datePreavis));
 
         contratRepository.save(contrat);
-        echeances.forEach(e -> { e.setContrat(contrat); echeanceRepository.save(e); });
+        // Le contrat de chaque échéance est déjà `contrat` (fixé dans construireEcheances,
+        // appelé plus haut avec cette même référence) : pas besoin de le réassigner ici.
+        echeances.forEach(echeanceRepository::save);
         contratStatusService.syncEmplacementStatut(contrat);
 
         Map<String, Object> nouveauSnapshot = contratSnapshot(contrat);
@@ -796,10 +794,11 @@ public class AdminController {
     // `dates` (seule la date fait qu'une ligne devient une échéance) et accède aux deux autres
     // tableaux avec un garde-fou de longueur, un index hors bornes valant simplement "absent".
     //
-    // Ne persiste rien : construit la liste d'Echeance en mémoire (ajoutées à `out`) et
-    // renvoie un message d'erreur dès qu'une date d'échéance sort de la période du
-    // contrat — pour permettre au contrôleur de rejeter tout le formulaire (contrat compris)
-    // avant d'écrire quoi que ce soit en base si une seule échéance est invalide.
+    // Ne persiste rien : construit la liste d'Echeance en mémoire (ajoutées à `out`) et renvoie
+    // un message d'erreur si un montant saisi est invalide — pour permettre au contrôleur de
+    // rejeter tout le formulaire (contrat compris) avant d'écrire quoi que ce soit en base si une
+    // seule échéance est invalide. Aucune contrainte sur la date elle-même par rapport à la
+    // période du contrat (cf. le commentaire dans la boucle ci-dessous).
     private String construireEcheances(Contrat contrat, String[] dates, String[] montants, String[] types,
                                         List<Echeance> out) {
         if (dates == null) {
@@ -814,14 +813,12 @@ public class AdminController {
                 continue;
             }
             LocalDate dateEcheance = LocalDate.parse(dateStr);
-            // Bornes facultatives (dateDebut/dateFin peuvent être absentes, cf. Contrat) : une
-            // borne manquante laisse simplement ce côté de la période ouvert, sans erreur.
-            boolean avantDebut = contrat.getDateDebut() != null && dateEcheance.isBefore(contrat.getDateDebut());
-            boolean apresFin = contrat.getDateFin() != null && dateEcheance.isAfter(contrat.getDateFin());
-            if (avantDebut || apresFin) {
-                return "La date d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                        + ") est en dehors de la période du contrat.";
-            }
+            // Volontairement AUCUNE contrainte de date par rapport à la période du contrat
+            // (dateDebut/dateFin, elles-mêmes facultatives — cf. Contrat) : une échéance
+            // représente le prochain paiement attendu, pas une certitude bornée aux dates
+            // connues du contrat — elle peut être créée à n'importe quelle date choisie par
+            // l'admin, y compris après la dateFin (ex. anticipation d'un renouvellement) ou sur
+            // un contrat sans aucune date renseignée.
             BigDecimal montantEcheance = (montantStr == null || montantStr.isBlank()) ? null : new BigDecimal(montantStr.trim());
             if (montantEcheance != null && montantEcheance.signum() <= 0) {
                 return "Le montant d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
