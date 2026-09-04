@@ -67,7 +67,7 @@
             <select name="palier" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
                 <option value="">Tous</option>
                 <option th:each="p : ${paliers}" th:value="${p}"
-                        th:text="${#strings.capitalize(#strings.toLowerCase(p.name()).replace('_',' '))}"
+                        th:text="${p.libelle}"
                         th:selected="${palierFiltre == p}">Palier</option>
             </select>
         </div>
@@ -131,7 +131,7 @@
                         <p class="text-[10px] text-slate-400 dark:text-slate-500" th:text="'ID: ' + ${store.id}">ID: 98321</p>
                     </div>
                 </td>
-               <td class="py-4 px-6 text-slate-600 dark:text-slate-300 font-medium" th:text="${#strings.capitalize(#strings.toLowerCase(store.palier.name()).replace('_',' '))}">Palier 1</td>
+               <td class="py-4 px-6 text-slate-600 dark:text-slate-300 font-medium" th:text="${store.palier.libelle}">Palier 1</td>
                 <td class="py-4 px-6">
                    <span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium px-2.5 py-1 rounded-md text-[11px]" th:text="${#strings.capitalize(#strings.toLowerCase(store.categorie.name()))}">Boutique</span>
                 </td>

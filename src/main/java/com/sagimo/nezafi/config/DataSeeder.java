@@ -28,7 +28,7 @@ import java.util.UUID;
 
 /**
  * Jeu de données de démo/test, généré une seule fois (DB H2 en mémoire, recréée à
- * chaque démarrage). Pense à couvrir concrètement : les 3 paliers, les 3 statuts
+ * chaque démarrage). Pense à couvrir concrètement : les 4 paliers, les 3 statuts
  * d'emplacement, plusieurs statuts de contrat (y compris un résilié pour montrer
  * l'historique d'un emplacement sur plusieurs locataires successifs), et les 3
  * couleurs d'échéance (payée/en cours/en retard) sur des échéances loyer ET caution.
@@ -72,7 +72,9 @@ public class DataSeeder implements CommandLineRunner {
             return;
         }
 
-        // --- Emplacements : répartis sur les 3 paliers, avec les 3 statuts ---
+        // --- Emplacements : répartis sur les 4 paliers (dont le rez de chaussée), avec les 3 statuts ---
+        creerEmplacement("Boutique Rez-de-chaussée Kamga", Palier.REZ_DE_CHAUSSEE,
+                CategorieEmplacement.BOUTIQUE, "22.00", "130000.00", StatutEmplacement.DISPONIBLE);
         Emplacement boutiqueTextile = creerEmplacement("Boutique Textile Mbouda", Palier.PALIER_1,
                 CategorieEmplacement.BOUTIQUE, "15.00", "100000.00", StatutEmplacement.NON_DISPONIBLE);
         Emplacement boutiqueCosmetiques = creerEmplacement("Boutique Cosmétiques Bella", Palier.PALIER_1,

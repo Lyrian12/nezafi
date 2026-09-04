@@ -88,8 +88,8 @@ public class EmplacementExportService {
                     csvField(contrat.map(Contrat::getActivite).orElse("")),
                     csvField(contrat.map(c -> c.getLocataire().getTelephone()).orElse("")),
                     contrat.map(Contrat::getMontantLoyer).map(BigDecimal::toPlainString).orElse(""),
-                    contrat.map(c -> c.getDateDebut().format(DATE_CSV)).orElse(""),
-                    contrat.map(c -> c.getDateFin().format(DATE_CSV)).orElse("")));
+                    contrat.map(Contrat::getDateDebut).map(d -> d.format(DATE_CSV)).orElse(""),
+                    contrat.map(Contrat::getDateFin).map(d -> d.format(DATE_CSV)).orElse("")));
         }
         writer.flush();
         return out.toByteArray();
@@ -130,7 +130,7 @@ public class EmplacementExportService {
         for (Emplacement emplacement : emplacements) {
             Optional<Contrat> contrat = contratActif(emplacement);
 
-            table.addCell(cellule(libelle(emplacement.getPalier().name())));
+            table.addCell(cellule(emplacement.getPalier().getLibelle()));
             table.addCell(cellule(emplacement.getName()));
             table.addCell(cellule(emplacement.getCategorie().name()));
             table.addCell(cellule(emplacement.getSuperficie() != null ? emplacement.getSuperficie() + " m²" : "—"));

@@ -32,10 +32,14 @@ public class Contrat {
     @JoinColumn(name = "locataire_id", nullable = false)
     private User locataire;
 
-    @Column(nullable = false)
+    // Facultatif : certains dossiers physiques repris n'ont pas de date de début connue avec
+    // certitude. Absence gérée proprement partout où ces dates sont utilisées (tri, export,
+    // affichage — cf. Contrat.dateFin ci-dessous pour l'expiration).
     private LocalDate dateDebut;
 
-    @Column(nullable = false)
+    // Facultatif, même raison que dateDebut. Un contrat sans dateFin n'est jamais marqué EXPIRE
+    // automatiquement ni compté dans l'alerte d'expiration à 30 jours (cf. ContratStatusService,
+    // AdminController.contractsPage) : simplement exclu de ces calculs, sans erreur.
     private LocalDate dateFin;
 
     @Column(length = 1000)
@@ -65,12 +69,15 @@ public class Contrat {
     @Column(nullable = false)
     private Integer dureeLoyerMois;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    // Facultative : masquée par défaut dans le formulaire (bouton "+" à côté du loyer pour la
+    // faire apparaître) — beaucoup de dossiers physiques repris n'en portent aucune trace.
+    // montantCaution et dureeCautionMois sont toujours renseignés ensemble ou absents ensemble
+    // (cf. AdminController), jamais l'un sans l'autre.
+    @Column(precision = 12, scale = 2)
     private BigDecimal montantCaution;
 
     // Idem loyer : durée de loyer que la caution représente, librement négociable,
-    // indépendante de dureeLoyerMois.
-    @Column(nullable = false)
+    // indépendante de dureeLoyerMois. Facultative, même raison que montantCaution ci-dessus.
     private Integer dureeCautionMois;
 
     // Obligatoire uniquement quand statut passe à RESILIER (validé côté contrôleur,

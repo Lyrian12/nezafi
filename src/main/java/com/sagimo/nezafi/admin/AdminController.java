@@ -217,7 +217,9 @@ public class AdminController {
         contratStatusService.rafraichirStatut(emplacement);
 
         List<Contrat> contrats = contratRepository.findByEmplacementId(id);
-        contrats.sort(Comparator.comparing(Contrat::getDateDebut).reversed());
+        // dateDebut facultative (cf. Contrat) : nullsFirst pour ne jamais lever de NPE, les
+        // contrats sans date de début se retrouvent simplement en dernier une fois inversé.
+        contrats.sort(Comparator.comparing(Contrat::getDateDebut, Comparator.nullsFirst(Comparator.naturalOrder())).reversed());
 
         model.addAttribute("emplacement", emplacement);
         model.addAttribute("contrats", contrats);
@@ -271,12 +273,16 @@ public class AdminController {
             @RequestParam(defaultValue = "DISPONIBLE") String statut,
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
-            @RequestParam BigDecimal prix,
+            @RequestParam(required = false) BigDecimal prix,
             @RequestParam String categorie,
             RedirectAttributes redirectAttributes) throws IOException {
 
-        if (superficie.signum() <= 0 || prix.signum() <= 0) {
-            redirectAttributes.addFlashAttribute("error", "La superficie et le prix doivent être strictement positifs.");
+        if (superficie.signum() <= 0) {
+            redirectAttributes.addFlashAttribute("error", "La superficie doit être un montant strictement positif.");
+            return "redirect:/admin/stores/add";
+        }
+        if (prix != null && prix.signum() <= 0) {
+            redirectAttributes.addFlashAttribute("error", "Le prix, s'il est renseigné, doit être strictement positif.");
             return "redirect:/admin/stores/add";
         }
 
@@ -317,13 +323,17 @@ public class AdminController {
             @RequestParam String statut,
             @RequestParam String palier,
             @RequestParam BigDecimal superficie,
-            @RequestParam BigDecimal prix,
+            @RequestParam(required = false) BigDecimal prix,
             @RequestParam String categorie,
             Authentication authentication,
             RedirectAttributes redirectAttributes) {
 
-        if (superficie.signum() <= 0 || prix.signum() <= 0) {
-            redirectAttributes.addFlashAttribute("error", "La superficie et le prix doivent être strictement positifs.");
+        if (superficie.signum() <= 0) {
+            redirectAttributes.addFlashAttribute("error", "La superficie doit être un montant strictement positif.");
+            return "redirect:/admin/stores/edit/" + id;
+        }
+        if (prix != null && prix.signum() <= 0) {
+            redirectAttributes.addFlashAttribute("error", "Le prix, s'il est renseigné, doit être strictement positif.");
             return "redirect:/admin/stores/edit/" + id;
         }
 
@@ -342,10 +352,19 @@ public class AdminController {
         emplacementRepository.save(emplacement);
 
         // Seul le prix d'une boutique est audité (pas le reste des champs de l'emplacement).
-        if (ancienPrix == null || ancienPrix.compareTo(prix) != 0) {
-            auditService.enregistrer(currentAdmin(authentication), TypeActionAudit.MODIFICATION, "Emplacement", id,
-                    Map.of("prix", ancienPrix == null ? "" : ancienPrix),
-                    Map.of("prix", prix));
+        // LinkedHashMap (pas Map.of) : accepte une valeur null, désormais possible (prix facultatif).
+        boolean prixChange;
+        if (ancienPrix == null || prix == null) {
+            prixChange = ancienPrix != prix;
+        } else {
+            prixChange = ancienPrix.compareTo(prix) != 0;
+        }
+        if (prixChange) {
+            Map<String, Object> avant = new LinkedHashMap<>();
+            avant.put("prix", ancienPrix);
+            Map<String, Object> apres = new LinkedHashMap<>();
+            apres.put("prix", prix);
+            auditService.enregistrer(currentAdmin(authentication), TypeActionAudit.MODIFICATION, "Emplacement", id, avant, apres);
         }
 
         return "redirect:/admin/stores";
@@ -430,16 +449,16 @@ public class AdminController {
     public String addContract(
             @RequestParam Long emplacementId,
             @RequestParam Long locataireId,
-            @RequestParam String dateDebut,
-            @RequestParam String dateFin,
+            @RequestParam(required = false) String dateDebut,
+            @RequestParam(required = false) String dateFin,
             @RequestParam(required = false) String termes,
             @RequestParam(required = false) String activite,
             @RequestParam(required = false) String nomEnseigne,
             @RequestParam String statut,
             @RequestParam BigDecimal montantLoyer,
             @RequestParam Integer dureeLoyerMois,
-            @RequestParam BigDecimal montantCaution,
-            @RequestParam Integer dureeCautionMois,
+            @RequestParam(required = false) BigDecimal montantCaution,
+            @RequestParam(required = false) Integer dureeCautionMois,
             @RequestParam(required = false) String datePreavis,
             @RequestParam(required = false) Long contratPrecedentId,
             @RequestParam(required = false) List<String> echeanceDates,
@@ -453,15 +472,21 @@ public class AdminController {
         User locataire = userRepository.findById(locataireId)
                 .orElseThrow(() -> new RuntimeException("Locataire not found"));
 
-        LocalDate dateDebutParsed = LocalDate.parse(dateDebut);
-        LocalDate dateFinParsed = LocalDate.parse(dateFin);
-        if (dateDebutParsed.isAfter(dateFinParsed)) {
+        LocalDate dateDebutParsed = parseDateOuNull(dateDebut);
+        LocalDate dateFinParsed = parseDateOuNull(dateFin);
+        if (dateDebutParsed != null && dateFinParsed != null && dateDebutParsed.isAfter(dateFinParsed)) {
             return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.",
                     contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
                             statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
         }
-        if (montantLoyer.signum() <= 0 || montantCaution.signum() <= 0) {
-            return rejectContractForm(model, "Le loyer et la caution doivent être des montants strictement positifs.",
+        if (montantLoyer.signum() <= 0) {
+            return rejectContractForm(model, "Le loyer doit être un montant strictement positif.",
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+        }
+        String erreurCaution = validerCaution(montantCaution, dureeCautionMois);
+        if (erreurCaution != null) {
+            return rejectContractForm(model, erreurCaution,
                     contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
                             statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
         }
@@ -519,6 +544,27 @@ public class AdminController {
         return "redirect:/admin/contracts/" + contrat.getId();
     }
 
+    /** Parse une date de formulaire facultative : chaîne absente ou vide → null (dateDebut,
+     *  dateFin, désormais toutes deux facultatives — cf. Contrat). */
+    private LocalDate parseDateOuNull(String valeur) {
+        return (valeur == null || valeur.isBlank()) ? null : LocalDate.parse(valeur);
+    }
+
+    /** montantCaution et dureeCautionMois sont toujours renseignés ensemble ou absents ensemble
+     *  (champ masqué par défaut derrière le bouton "+" du formulaire) — jamais l'un sans
+     *  l'autre. Retourne un message d'erreur, ou null si valide. */
+    private String validerCaution(BigDecimal montantCaution, Integer dureeCautionMois) {
+        boolean montantPresent = montantCaution != null;
+        boolean dureePresente = dureeCautionMois != null;
+        if (montantPresent != dureePresente) {
+            return "La caution nécessite à la fois un montant et une durée (ou aucun des deux).";
+        }
+        if (montantPresent && montantCaution.signum() <= 0) {
+            return "Le montant de la caution doit être strictement positif.";
+        }
+        return null;
+    }
+
     /** Reconstruit un Contrat non persisté pour re-remplir le formulaire après un rejet. */
     private Contrat contratPourRejet(Emplacement emplacement, User locataire, String dateDebut, String dateFin,
                                       String termes, String activite, String nomEnseigne, String statut,
@@ -528,10 +574,10 @@ public class AdminController {
         rejected.setEmplacement(emplacement);
         rejected.setLocataire(locataire);
         try {
-            rejected.setDateDebut(LocalDate.parse(dateDebut));
-            rejected.setDateFin(LocalDate.parse(dateFin));
+            rejected.setDateDebut(parseDateOuNull(dateDebut));
+            rejected.setDateFin(parseDateOuNull(dateFin));
         } catch (RuntimeException ignored) {
-            // Dates invalides ou absentes : le formulaire les affichera simplement vides.
+            // Dates au format invalide : le formulaire les affichera simplement vides.
         }
         rejected.setTermes(termes);
         rejected.setActivite(activite);
@@ -586,16 +632,16 @@ public class AdminController {
             @PathVariable Long id,
             @RequestParam Long emplacementId,
             @RequestParam Long locataireId,
-            @RequestParam String dateDebut,
-            @RequestParam String dateFin,
+            @RequestParam(required = false) String dateDebut,
+            @RequestParam(required = false) String dateFin,
             @RequestParam(required = false) String termes,
             @RequestParam(required = false) String activite,
             @RequestParam(required = false) String nomEnseigne,
             @RequestParam String statut,
             @RequestParam BigDecimal montantLoyer,
             @RequestParam Integer dureeLoyerMois,
-            @RequestParam BigDecimal montantCaution,
-            @RequestParam Integer dureeCautionMois,
+            @RequestParam(required = false) BigDecimal montantCaution,
+            @RequestParam(required = false) Integer dureeCautionMois,
             @RequestParam(required = false) String datePreavis,
             @RequestParam(required = false) List<String> echeanceDates,
             @RequestParam(required = false) List<String> echeanceMontants,
@@ -611,13 +657,17 @@ public class AdminController {
         User locataire = userRepository.findById(locataireId)
                 .orElseThrow(() -> new RuntimeException("Locataire not found"));
 
-        LocalDate dateDebutParsed = LocalDate.parse(dateDebut);
-        LocalDate dateFinParsed = LocalDate.parse(dateFin);
-        if (dateDebutParsed.isAfter(dateFinParsed)) {
+        LocalDate dateDebutParsed = parseDateOuNull(dateDebut);
+        LocalDate dateFinParsed = parseDateOuNull(dateFin);
+        if (dateDebutParsed != null && dateFinParsed != null && dateDebutParsed.isAfter(dateFinParsed)) {
             return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.", contrat, false);
         }
-        if (montantLoyer.signum() <= 0 || montantCaution.signum() <= 0) {
-            return rejectContractForm(model, "Le loyer et la caution doivent être des montants strictement positifs.", contrat, false);
+        if (montantLoyer.signum() <= 0) {
+            return rejectContractForm(model, "Le loyer doit être un montant strictement positif.", contrat, false);
+        }
+        String erreurCaution = validerCaution(montantCaution, dureeCautionMois);
+        if (erreurCaution != null) {
+            return rejectContractForm(model, erreurCaution, contrat, false);
         }
 
         StatutContrat statutEnum = StatutContrat.valueOf(statut);
@@ -692,7 +742,11 @@ public class AdminController {
                 continue;
             }
             LocalDate dateEcheance = LocalDate.parse(dateStr);
-            if (dateEcheance.isBefore(contrat.getDateDebut()) || dateEcheance.isAfter(contrat.getDateFin())) {
+            // Bornes facultatives (dateDebut/dateFin peuvent être absentes, cf. Contrat) : une
+            // borne manquante laisse simplement ce côté de la période ouvert, sans erreur.
+            boolean avantDebut = contrat.getDateDebut() != null && dateEcheance.isBefore(contrat.getDateDebut());
+            boolean apresFin = contrat.getDateFin() != null && dateEcheance.isAfter(contrat.getDateFin());
+            if (avantDebut || apresFin) {
                 return "La date d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                         + ") est en dehors de la période du contrat.";
             }
@@ -903,5 +957,40 @@ public class AdminController {
         model.addAttribute("client", client);
         model.addAttribute("contrats", contratRepository.findByLocataireId(id));
         return "admin-client-detail";
+    }
+
+    // POST (pas GET) : voir le commentaire sur deleteStore ci-dessus, même raison. Même logique
+    // de confirmation en deux temps qu'un emplacement : User.contrats est cascade=ALL (cf.
+    // User), donc supprimer un client efface aussi en cascade tous ses contrats, échéances et
+    // paiements — un premier POST sans confirmer=true prévient s'il existe un tel historique
+    // plutôt que de l'effacer silencieusement.
+    @PostMapping("/clients/delete/{id}")
+    @PreAuthorize(ADMIN_SEUL)
+    public String deleteClient(@PathVariable Long id, @RequestParam(required = false, defaultValue = "false") boolean confirmer,
+                                Authentication authentication, RedirectAttributes redirectAttributes) {
+        User client = userRepository.findById(id).filter(u -> u.getRole() == Role.ROLE_LOCATAIRE).orElse(null);
+        if (client == null) {
+            redirectAttributes.addFlashAttribute("error", "Client introuvable.");
+            return "redirect:/admin/clients";
+        }
+
+        List<Contrat> contratsLies = contratRepository.findByLocataireId(id);
+        if (!contratsLies.isEmpty() && !confirmer) {
+            redirectAttributes.addFlashAttribute("warning",
+                    "Ce client a " + contratsLies.size() + " contrat(s) rattaché(s), avec leurs échéances et paiements : "
+                            + "supprimer le client effacera aussi tout cet historique financier. Confirmer la suppression ?");
+            redirectAttributes.addFlashAttribute("demanderConfirmationSuppression", true);
+            return "redirect:/admin/clients/" + id;
+        }
+
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("nom", client.getNom());
+        snapshot.put("prenom", client.getPrenom());
+        snapshot.put("telephone", client.getTelephone());
+        snapshot.put("email", client.getEmail());
+        auditService.enregistrer(currentAdmin(authentication), TypeActionAudit.SUPPRESSION, "Client", id, snapshot, null);
+
+        userRepository.deleteById(id);
+        return "redirect:/admin/clients";
     }
 }

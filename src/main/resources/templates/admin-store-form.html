@@ -71,6 +71,7 @@
                     <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Palier *</label>
                     <select name="palier" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                         <option value="">Sélectionner un palier</option>
+                        <option value="REZ_DE_CHAUSSEE" th:selected="${emplacement.palier == 'REZ_DE_CHAUSSEE'}">Rez de chaussée</option>
                         <option value="PALIER_1" th:selected="${emplacement.palier == 'PALIER_1'}">Palier 1</option>
                         <option value="PALIER_2" th:selected="${emplacement.palier == 'PALIER_2'}">Palier 2</option>
                         <option value="PALIER_3" th:selected="${emplacement.palier == 'PALIER_3'}">Palier 3</option>
@@ -86,9 +87,10 @@
 
                 <!-- Price -->
                 <div>
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Prix (FCFA) *</label>
-                    <input type="number" name="prix" th:value="${emplacement.prix}" step="0.01" min="0" placeholder="ex : 150000.00" required
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Prix (FCFA)</label>
+                    <input type="number" name="prix" th:value="${emplacement.prix}" step="0.01" min="0" placeholder="ex : 150000.00"
                            class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5">Facultatif — certains dossiers repris n'ont pas ce prix connu avec certitude.</p>
                 </div>
 
                 <!-- Catégorie -->

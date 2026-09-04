@@ -79,8 +79,13 @@
                 <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${client.prenom}">Prénom</td>
                 <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${client.telephone}">Téléphone</td>
                 <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${client.numeroCNI} ?: '—'">Numéro CNI</td>
-                <td class="py-4 px-6 text-right space-x-2">
+                <td class="py-4 px-6 text-right space-x-2 whitespace-nowrap">
                     <a th:href="@{/admin/clients/{id}(id=${client.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Voir</a>
+                    <form th:if="${estAdmin}" th:action="@{/admin/clients/delete/{id}(id=${client.id})}" method="post" class="inline"
+                          onsubmit="return confirm('Supprimer ce client ?');">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="text-red-500 dark:text-red-400 font-bold hover:underline">Supprimer</button>
+                    </form>
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(clients)}">

@@ -160,7 +160,11 @@
                 </a>
             </div>
             <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">Taux d'occupation par palier — un anneau par palier, chacun son propre taux</p>
-            <div class="relative mx-auto w-40 h-40">
+            <!-- Pas de texte au centre des anneaux : superposé à plusieurs anneaux colorés, il
+                 rendait impossible de distinguer quel anneau correspond à quel palier. Le taux
+                 global vit maintenant dans son propre encart juste en dessous, détaché des
+                 anneaux. -->
+            <div class="mx-auto w-40 h-40">
                 <!-- -rotate-90 : chaque anneau démarre à midi plutôt qu'à 3h (angle de départ par défaut d'un cercle SVG) -->
                 <svg viewBox="0 0 160 160" class="w-full h-full -rotate-90">
                     <circle th:each="ring : ${occupancyRings}" cx="80" cy="80" th:r="${ring.radius}"
@@ -169,16 +173,16 @@
                             fill="none" stroke-width="12" stroke-linecap="round"
                             th:style="'stroke:' + ${ring.color} + ';'" th:stroke-dasharray="${ring.dashArray}"></circle>
                 </svg>
-                <div class="absolute inset-0 flex flex-col items-center justify-center">
-                    <span class="text-2xl font-black text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(tauxOccupationGlobal, 1, 0)} + '%'">0%</span>
-                    <span class="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wide">Global</span>
-                </div>
             </div>
-            <div class="mt-6 space-y-2">
+            <div class="mt-4 pb-3 mb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide">Taux global</span>
+                <span class="text-base font-black text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(tauxOccupationGlobal, 1, 0)} + '%'">0%</span>
+            </div>
+            <div class="space-y-2">
                 <div th:each="item, iter : ${occupancyByPalier}" class="flex items-center justify-between text-xs">
                     <span class="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                         <span class="w-2.5 h-2.5 rounded-full shrink-0" th:style="'background:' + ${couleursPalier[iter.index]} + ';'"></span>
-                        <span th:text="${#strings.capitalize(#strings.toLowerCase(item.palier.name()).replace('_',' '))}">Palier 1</span>
+                        <span th:text="${item.palier.libelle}">Palier 1</span>
                     </span>
                     <span class="text-slate-400 dark:text-slate-500">
                         <span class="font-bold text-slate-700 dark:text-slate-200" th:text="${#numbers.formatDecimal(item.percentage, 1, 0)} + '%'">0%</span>
@@ -263,8 +267,11 @@
             </div>
         </div>
 
-        <!-- Encaissements (tendance) -->
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm 2xl:col-span-2">
+        <!-- Encaissements (tendance) — masqué pour l'instant (th:if="${false}"), le widget n'est
+             pas encore assez défini pour rester visible. Le code (ici et
+             AdminDashboardController.calculerTendanceEncaissements) reste en place tel quel,
+             prêt à être réactivé (retirer le th:if) une fois la définition affinée. -->
+        <div th:if="${false}" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm 2xl:col-span-2">
             <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
                 <h2 class="text-lg font-medium flex items-center gap-2 text-slate-900 dark:text-slate-100">
                     <span class="w-5 h-5 text-slate-400 dark:text-slate-500" th:insert="~{fragments/icons :: trendingUp}"></span>

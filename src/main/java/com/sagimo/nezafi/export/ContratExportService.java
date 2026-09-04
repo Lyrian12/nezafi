@@ -69,11 +69,16 @@ public class ContratExportService {
                     csvField(contrat.getLocataire().getPrenom() + " " + contrat.getLocataire().getNom()),
                     csvField(contrat.getNomEnseigne()),
                     contrat.getMontantLoyer() != null ? contrat.getMontantLoyer().toPlainString() : "",
-                    contrat.getDateDebut().format(DATE_CSV),
-                    contrat.getDateFin().format(DATE_CSV)));
+                    csvDate(contrat.getDateDebut()),
+                    csvDate(contrat.getDateFin())));
         }
         writer.flush();
         return out.toByteArray();
+    }
+
+    /** Date de bail facultative (cf. Contrat.dateDebut / dateFin) : champ vide plutôt qu'une NPE. */
+    private String csvDate(LocalDate valeur) {
+        return valeur == null ? "" : valeur.format(DATE_CSV);
     }
 
     private String csvField(String value) {
@@ -139,7 +144,7 @@ public class ContratExportService {
         ajouterSection(document, "Emplacement");
         PdfPTable emplacement = tableauCles(2);
         ligne(emplacement, "Nom", contrat.getEmplacement().getName());
-        ligne(emplacement, "Palier", libellePalier(contrat.getEmplacement().getPalier().name()));
+        ligne(emplacement, "Palier", contrat.getEmplacement().getPalier().getLibelle());
         ligne(emplacement, "Catégorie", contrat.getEmplacement().getCategorie().name());
         ligne(emplacement, "Superficie", PdfFormat.montant(contrat.getEmplacement().getSuperficie()).replace(" FCFA", " m²"));
         document.add(emplacement);
@@ -168,16 +173,13 @@ public class ContratExportService {
         PdfPTable finances = tableauCles(2);
         ligne(finances, "Montant du loyer", PdfFormat.montant(contrat.getMontantLoyer())
                 + " (" + contrat.getDureeLoyerMois() + " mois couverts)");
-        ligne(finances, "Montant de la caution", PdfFormat.montant(contrat.getMontantCaution())
-                + " (" + contrat.getDureeCautionMois() + " mois couverts)");
+        ligne(finances, "Montant de la caution", contrat.getMontantCaution() == null
+                ? "Non renseignée"
+                : PdfFormat.montant(contrat.getMontantCaution()) + " (" + contrat.getDureeCautionMois() + " mois couverts)");
         document.add(finances);
 
         document.close();
         return out.toByteArray();
-    }
-
-    private String libellePalier(String nomEnum) {
-        return nomEnum.replace("_", " ").substring(0, 1) + nomEnum.replace("_", " ").substring(1).toLowerCase();
     }
 
     // --- Petits constructeurs de cellules/lignes partagés -----------------------------------

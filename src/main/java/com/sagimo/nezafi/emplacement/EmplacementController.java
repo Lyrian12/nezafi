@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -114,13 +115,22 @@ public class EmplacementController {
                     Emplacement saved = emplacementRepository.save(existing);
 
                     // Seul le prix est audité (pas le reste des champs), même périmètre que
-                    // AdminController.editStore.
+                    // AdminController.editStore. Prix désormais facultatif des deux côtés :
+                    // comparaison et instantané (LinkedHashMap, pas Map.of) tolèrent null.
                     BigDecimal nouveauPrix = saved.getPrix();
                     User demandeur = utilisateurCourant(authentication);
-                    if (demandeur != null && (ancienPrix == null ? nouveauPrix != null : ancienPrix.compareTo(nouveauPrix) != 0)) {
-                        auditService.enregistrer(demandeur, TypeActionAudit.MODIFICATION, "Emplacement", id,
-                                Map.of("prix", ancienPrix == null ? "" : ancienPrix),
-                                Map.of("prix", nouveauPrix));
+                    boolean prixChange;
+                    if (ancienPrix == null || nouveauPrix == null) {
+                        prixChange = ancienPrix != nouveauPrix;
+                    } else {
+                        prixChange = ancienPrix.compareTo(nouveauPrix) != 0;
+                    }
+                    if (demandeur != null && prixChange) {
+                        Map<String, Object> avant = new LinkedHashMap<>();
+                        avant.put("prix", ancienPrix);
+                        Map<String, Object> apres = new LinkedHashMap<>();
+                        apres.put("prix", nouveauPrix);
+                        auditService.enregistrer(demandeur, TypeActionAudit.MODIFICATION, "Emplacement", id, avant, apres);
                     }
 
                     return ResponseEntity.ok(saved);
