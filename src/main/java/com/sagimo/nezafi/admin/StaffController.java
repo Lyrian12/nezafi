@@ -174,8 +174,17 @@ public class StaffController {
 
     private String rejeter(Model model, String erreur, String nom, String prenom, String telephone,
                             String email, String role) {
+        return rejeter(model, erreur, nom, prenom, telephone, email, role, null);
+    }
+
+    /** {@code id} distingue création (null → formulaire vers /add) et édition (id existant →
+     *  formulaire vers /edit/{id}, cf. admin-staff-form.html) — dans les deux cas, réaffiche tout
+     *  ce que l'utilisateur avait déjà saisi plutôt qu'un formulaire vidé. */
+    private String rejeter(Model model, String erreur, String nom, String prenom, String telephone,
+                            String email, String role, Long id) {
         model.addAttribute("error", erreur);
         User rejete = new User();
+        rejete.setId(id);
         rejete.setNom(nom);
         rejete.setPrenom(prenom);
         rejete.setTelephone(telephone);
@@ -215,28 +224,24 @@ public class StaffController {
         String normalizedEmail = (email == null || email.isBlank()) ? null : email.trim();
 
         if (roleEnum == null) {
-            model.addAttribute("error", "Rôle invalide : uniquement Administrateur, Secrétariat ou Comptable depuis cette page.");
-            model.addAttribute("membre", membre);
-            return "admin-staff-form";
+            return rejeter(model, "Rôle invalide : uniquement Administrateur, Secrétariat ou Comptable depuis cette page.",
+                    nom, prenom, trimmedTelephone, normalizedEmail, role, id);
         }
         boolean telephonePris = userRepository.findByTelephone(trimmedTelephone)
                 .filter(autre -> !autre.getId().equals(id)).isPresent();
         if (telephonePris) {
-            model.addAttribute("error", "Ce numéro de téléphone est déjà utilisé par un autre compte.");
-            model.addAttribute("membre", membre);
-            return "admin-staff-form";
+            return rejeter(model, "Ce numéro de téléphone est déjà utilisé par un autre compte.",
+                    nom, prenom, trimmedTelephone, normalizedEmail, role, id);
         }
         boolean emailPris = normalizedEmail != null && userRepository.findByEmail(normalizedEmail)
                 .filter(autre -> !autre.getId().equals(id)).isPresent();
         if (emailPris) {
-            model.addAttribute("error", "Cet email est déjà utilisé par un autre compte.");
-            model.addAttribute("membre", membre);
-            return "admin-staff-form";
+            return rejeter(model, "Cet email est déjà utilisé par un autre compte.",
+                    nom, prenom, trimmedTelephone, normalizedEmail, role, id);
         }
         if (password != null && !password.isBlank() && password.length() < 8) {
-            model.addAttribute("error", "Le mot de passe doit contenir au moins 8 caractères.");
-            model.addAttribute("membre", membre);
-            return "admin-staff-form";
+            return rejeter(model, "Le mot de passe doit contenir au moins 8 caractères.",
+                    nom, prenom, trimmedTelephone, normalizedEmail, role, id);
         }
 
         membre.setNom(nom);
