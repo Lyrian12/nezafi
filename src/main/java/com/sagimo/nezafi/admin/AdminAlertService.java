@@ -73,9 +73,12 @@ public class AdminAlertService {
         if (montantLoyer == null) {
             return false;
         }
+        // montantDu facultatif (cf. Echeance) : une échéance sans montant ne contribue simplement
+        // pas à ce total, plutôt que de faire planter la somme.
         BigDecimal totalEcheancesLoyer = echeanceRepository.findByContratId(contrat.getId()).stream()
                 .filter(e -> e.getType() == TypeEcheance.LOYER)
                 .map(Echeance::getMontantDu)
+                .filter(montant -> montant != null)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (totalEcheancesLoyer.compareTo(BigDecimal.ZERO) == 0) {
             // Aucune échéance loyer saisie : rien d'anormal en soi (échéancier pas encore fait).
@@ -86,10 +89,12 @@ public class AdminAlertService {
         return ecart.compareTo(seuil) > 0;
     }
 
-    /** Échéances dont la somme des paiements dépasse le montant dû. */
+    /** Échéances dont la somme des paiements dépasse le montant dû. Sans montant dû renseigné
+     *  (facultatif, cf. Echeance), rien à comparer : jamais considérée excédentaire ici. */
     public List<Echeance> echeancesAvecPaiementExcedentaire() {
         return echeanceRepository.findAll().stream()
-                .filter(e -> echeanceStatusService.totalPaye(e.getId()).compareTo(e.getMontantDu()) > 0)
+                .filter(e -> e.getMontantDu() != null
+                        && echeanceStatusService.totalPaye(e.getId()).compareTo(e.getMontantDu()) > 0)
                 .toList();
     }
 }

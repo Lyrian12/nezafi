@@ -89,7 +89,8 @@
                         <span th:text="${echeance.statut}">EN_COURS</span>
                     </span>
                 </td>
-                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${#numbers.formatDecimal(echeance.montantDu, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300"
+                    th:text="${echeance.montantDu != null} ? ${#numbers.formatDecimal(echeance.montantDu, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA' : 'Non renseigné'">0 FCFA</td>
                 <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${#numbers.formatDecimal(totalPayeParEcheance.get(echeance.id), 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</td>
                 <td class="py-4 px-6 text-right">
                     <a th:href="@{/admin/contracts/{id}(id=${echeance.contrat.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Voir le contrat</a>

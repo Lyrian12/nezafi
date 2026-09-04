@@ -44,7 +44,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/admin")
@@ -407,8 +409,22 @@ public class AdminController {
         // touche (cf. ContratStatusService.verifierExpiration) avant de filtrer/compter par statut.
         contratStatusService.rafraichirStatutsExpiration(allContracts);
 
+        // Un contrat renouvelé (référencé comme contratPrecedent par un autre) ne doit plus
+        // apparaître dans ce tableau principal : le nouveau contrat le remplace, l'afficher à
+        // côté de son remplaçant pour le même emplacement/client prête à confusion. L'ancien
+        // reste entièrement conservé en base et consultable dans l'historique déjà existant sur
+        // la fiche emplacement (AdminController.storeDetail) et la fiche client
+        // (AdminController.clientDetail), qui interrogent directement le dépôt sans passer par
+        // cette liste.
+        Set<Long> idsRemplacesParUnRenouvellement = allContracts.stream()
+                .map(Contrat::getContratPrecedent)
+                .filter(precedent -> precedent != null)
+                .map(Contrat::getId)
+                .collect(Collectors.toSet());
+
         String terme = (search == null || search.isBlank()) ? null : search.trim().toLowerCase();
         List<Contrat> filteredContracts = allContracts.stream()
+                .filter(c -> !idsRemplacesParUnRenouvellement.contains(c.getId()))
                 .filter(c -> statut == null || c.getStatut() == statut)
                 .filter(c -> terme == null
                         || c.getEmplacement().getName().toLowerCase().contains(terme)
@@ -416,6 +432,11 @@ public class AdminController {
                         || c.getLocataire().getPrenom().toLowerCase().contains(terme)
                         || (c.getNomEnseigne() != null && c.getNomEnseigne().toLowerCase().contains(terme))
                         || (c.getActivite() != null && c.getActivite().toLowerCase().contains(terme)))
+                // Tri par défaut par statut, du plus actionnable au plus terminal : VALIDER,
+                // EN_ATTENTE, EXPIRE, RESILIER, REJETER. Le filtre ?statut=... ci-dessus continue
+                // de s'appliquer normalement (il ne restreint qu'à un seul statut à la fois, ce
+                // qui rend ce tri sans effet visible tant qu'il est actif).
+                .sorted(Comparator.comparingInt(c -> prioriteStatutContrat(c.getStatut())))
                 .toList();
         model.addAttribute("contracts", filteredContracts);
         model.addAttribute("statutFiltre", statut);
@@ -433,6 +454,19 @@ public class AdminController {
         model.addAttribute("expiringContracts", expiringContracts);
 
         return "admin-contracts";
+    }
+
+    /** Ordre d'affichage par défaut du tableau des contrats : du plus actionnable (VALIDER) au
+     *  plus terminal (REJETER) — même principe que EcheanceAdminController/AdminDashboardController
+     *  pour les échéances (prioriteStatutEcheance). */
+    private int prioriteStatutContrat(StatutContrat statut) {
+        return switch (statut) {
+            case VALIDER -> 0;
+            case EN_ATTENTE -> 1;
+            case EXPIRE -> 2;
+            case RESILIER -> 3;
+            case REJETER -> 4;
+        };
     }
 
     @GetMapping("/contracts/add")
@@ -461,9 +495,9 @@ public class AdminController {
             @RequestParam(required = false) Integer dureeCautionMois,
             @RequestParam(required = false) String datePreavis,
             @RequestParam(required = false) Long contratPrecedentId,
-            @RequestParam(required = false) List<String> echeanceDates,
-            @RequestParam(required = false) List<String> echeanceMontants,
-            @RequestParam(required = false) List<String> echeanceTypes,
+            @RequestParam(required = false) String[] echeanceDates,
+            @RequestParam(required = false) String[] echeanceMontants,
+            @RequestParam(required = false) String[] echeanceTypes,
             Authentication authentication,
             Model model) {
 
@@ -491,7 +525,12 @@ public class AdminController {
                             statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
         }
 
-        StatutContrat statutEnum = StatutContrat.valueOf(statut);
+        StatutContrat statutEnum = parseStatutOuNull(statut);
+        if (statutEnum == null) {
+            return rejectContractForm(model, "Statut invalide : sélectionnez un statut dans la liste.",
+                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+        }
         if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacement.getId(), null)) {
             return rejectContractForm(model,
                     "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.",
@@ -550,6 +589,24 @@ public class AdminController {
         return (valeur == null || valeur.isBlank()) ? null : LocalDate.parse(valeur);
     }
 
+    /** Parse défensif du statut soumis par le formulaire : null (au lieu d'une exception) si
+     *  absent, vide ou invalide — un <select> HTML sans <option> sélectionnée retombe
+     *  silencieusement sur la première option côté navigateur (cf. admin-contract-form.html,
+     *  cas RESILIER/EXPIRE) et soumettrait sinon une chaîne vide ou inattendue ici. Avant ce
+     *  garde-fou, {@code StatutContrat.valueOf(statut)} plantait avec une IllegalArgumentException
+     *  non rattrapée (HTTP 500) avant même d'atteindre le traitement des échéances plus bas —
+     *  tout le formulaire échouait en silence pour l'utilisateur, échéance ajoutée y compris. */
+    private StatutContrat parseStatutOuNull(String statut) {
+        if (statut == null || statut.isBlank()) {
+            return null;
+        }
+        try {
+            return StatutContrat.valueOf(statut);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     /** montantCaution et dureeCautionMois sont toujours renseignés ensemble ou absents ensemble
      *  (champ masqué par défaut derrière le bouton "+" du formulaire) — jamais l'un sans
      *  l'autre. Retourne un message d'erreur, ou null si valide. */
@@ -582,7 +639,7 @@ public class AdminController {
         rejected.setTermes(termes);
         rejected.setActivite(activite);
         rejected.setNomEnseigne(nomEnseigne);
-        rejected.setStatut(StatutContrat.valueOf(statut));
+        rejected.setStatut(parseStatutOuNull(statut));
         rejected.setMontantLoyer(montantLoyer);
         rejected.setDureeLoyerMois(dureeLoyerMois);
         rejected.setMontantCaution(montantCaution);
@@ -643,9 +700,9 @@ public class AdminController {
             @RequestParam(required = false) BigDecimal montantCaution,
             @RequestParam(required = false) Integer dureeCautionMois,
             @RequestParam(required = false) String datePreavis,
-            @RequestParam(required = false) List<String> echeanceDates,
-            @RequestParam(required = false) List<String> echeanceMontants,
-            @RequestParam(required = false) List<String> echeanceTypes,
+            @RequestParam(required = false) String[] echeanceDates,
+            @RequestParam(required = false) String[] echeanceMontants,
+            @RequestParam(required = false) String[] echeanceTypes,
             Authentication authentication,
             Model model) {
 
@@ -670,7 +727,10 @@ public class AdminController {
             return rejectContractForm(model, erreurCaution, contrat, false);
         }
 
-        StatutContrat statutEnum = StatutContrat.valueOf(statut);
+        StatutContrat statutEnum = parseStatutOuNull(statut);
+        if (statutEnum == null) {
+            return rejectContractForm(model, "Statut invalide : sélectionnez un statut dans la liste.", contrat, false);
+        }
         if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacementId, contrat.getId())) {
             return rejectContractForm(model,
                     "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.", contrat, false);
@@ -722,23 +782,35 @@ public class AdminController {
 
     // Les échéances ne sont jamais générées automatiquement selon une périodicité :
     // chaque contrat a son propre échéancier négocié au cas par cas, saisi ici
-    // manuellement par l'admin (dates/montants/types en listes parallèles depuis le
+    // manuellement par l'admin (dates/montants/types en tableaux parallèles depuis le
     // formulaire). Type par défaut LOYER si non renseigné.
+    //
+    // String[] plutôt que List<String> pour dates/montants/types : avec le montant désormais
+    // facultatif, une échéance saisie seule (un seul formulaire, une seule ligne) peut soumettre
+    // echeanceMontants avec une unique occurrence à chaîne vide — or le conteneur servlet lie
+    // alors ce paramètre à un tableau de longueur ZÉRO plutôt qu'à un tableau à un élément vide
+    // (vérifié empiriquement : dès qu'il y a au moins deux occurrences du même paramètre, même
+    // avec l'une d'elles vide, la longueur reste correcte et alignée — la longueur ne s'effondre
+    // que dans le cas d'une occurrence UNIQUE et vide). D'où la boucle ci-dessous qui n'indexe
+    // plus `montants`/`types` en supposant leur longueur alignée sur `dates` : elle boucle sur
+    // `dates` (seule la date fait qu'une ligne devient une échéance) et accède aux deux autres
+    // tableaux avec un garde-fou de longueur, un index hors bornes valant simplement "absent".
     //
     // Ne persiste rien : construit la liste d'Echeance en mémoire (ajoutées à `out`) et
     // renvoie un message d'erreur dès qu'une date d'échéance sort de la période du
     // contrat — pour permettre au contrôleur de rejeter tout le formulaire (contrat compris)
     // avant d'écrire quoi que ce soit en base si une seule échéance est invalide.
-    private String construireEcheances(Contrat contrat, List<String> dates, List<String> montants, List<String> types,
+    private String construireEcheances(Contrat contrat, String[] dates, String[] montants, String[] types,
                                         List<Echeance> out) {
-        if (dates == null || montants == null) {
+        if (dates == null) {
             return null;
         }
-        int n = Math.min(dates.size(), montants.size());
-        for (int i = 0; i < n; i++) {
-            String dateStr = dates.get(i);
-            String montantStr = montants.get(i);
-            if (dateStr == null || dateStr.isBlank() || montantStr == null || montantStr.isBlank()) {
+        for (int i = 0; i < dates.length; i++) {
+            String dateStr = dates[i];
+            String montantStr = (montants != null && i < montants.length) ? montants[i] : null;
+            // Seule la date fait qu'une ligne devient une échéance (le montant, désormais
+            // facultatif, cf. Echeance.montantDu, n'est plus une condition pour retenir la ligne).
+            if (dateStr == null || dateStr.isBlank()) {
                 continue;
             }
             LocalDate dateEcheance = LocalDate.parse(dateStr);
@@ -750,17 +822,17 @@ public class AdminController {
                 return "La date d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                         + ") est en dehors de la période du contrat.";
             }
-            BigDecimal montantEcheance = new BigDecimal(montantStr.trim());
-            if (montantEcheance.signum() <= 0) {
+            BigDecimal montantEcheance = (montantStr == null || montantStr.isBlank()) ? null : new BigDecimal(montantStr.trim());
+            if (montantEcheance != null && montantEcheance.signum() <= 0) {
                 return "Le montant d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-                        + ") doit être strictement positif.";
+                        + "), s'il est renseigné, doit être strictement positif.";
             }
             Echeance echeance = new Echeance();
             echeance.setContrat(contrat);
             echeance.setDateEcheance(dateEcheance);
             echeance.setMontantDu(montantEcheance);
             echeance.setStatut(StatutEcheance.EN_COURS);
-            String typeStr = (types != null && i < types.size()) ? types.get(i) : null;
+            String typeStr = (types != null && i < types.length) ? types[i] : null;
             echeance.setType((typeStr == null || typeStr.isBlank()) ? TypeEcheance.LOYER : TypeEcheance.valueOf(typeStr));
             out.add(echeance);
         }

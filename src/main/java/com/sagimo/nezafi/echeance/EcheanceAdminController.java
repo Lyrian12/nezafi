@@ -267,8 +267,10 @@ public class EcheanceAdminController {
         auditService.enregistrer(admin, TypeActionAudit.CREATION, "Paiement", paiement.getId(), null, snapshot);
 
         // Alerte non bloquante : le paiement est bien enregistré, mais un dépassement du
-        // montant dû mérite d'être signalé à l'admin (trop-perçu, saisie erronée...).
-        if (echeanceStatusService.totalPaye(echeance.getId()).compareTo(echeance.getMontantDu()) > 0) {
+        // montant dû mérite d'être signalé à l'admin (trop-perçu, saisie erronée...). Sans
+        // montant dû renseigné (facultatif, cf. Echeance), rien à comparer : pas d'alerte.
+        if (echeance.getMontantDu() != null
+                && echeanceStatusService.totalPaye(echeance.getId()).compareTo(echeance.getMontantDu()) > 0) {
             redirectAttributes.addFlashAttribute("warning",
                     "Ce paiement porte le total payé au-delà du montant dû pour cette échéance.");
         }

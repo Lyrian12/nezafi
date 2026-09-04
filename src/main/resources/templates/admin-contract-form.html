@@ -106,17 +106,27 @@
                 <!-- Status -->
                 <div>
                     <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Statut *</label>
-                    <!-- RESILIER n'est jamais proposé ici : la résiliation passe uniquement par
-                         l'action dédiée (motif obligatoire) sur la fiche contrat. Si le contrat
-                         est déjà résilié, on l'affiche en lecture seule pour ne pas le "dé-résilier"
-                         par erreur en resoumettant ce formulaire. -->
-                    <div th:if="${contrat.statut != null && contrat.statut.name() == 'RESILIER'}">
-                        <input type="hidden" name="statut" value="RESILIER"/>
-                        <p class="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+                    <!-- RESILIER et EXPIRE ne sont jamais proposés ici : la résiliation passe par
+                         l'action dédiée (motif obligatoire) sur la fiche contrat, et EXPIRE est
+                         recalculé automatiquement (cf. ContratStatusService.verifierExpiration).
+                         Si le contrat est déjà dans l'un de ces deux statuts, on l'affiche en
+                         lecture seule — sans ce garde-fou, le <select> ci-dessous n'a aucune
+                         <option> qui corresponde, le navigateur retombe sur la première option
+                         ("Sélectionner un statut", valeur vide) et soumet statut="" à l'insu de
+                         l'utilisateur : StatutContrat.valueOf("") plante alors avec une
+                         IllegalArgumentException nonrattrapée (HTTP 500) AVANT même d'atteindre le
+                         traitement des échéances plus bas — tout le formulaire échoue en silence,
+                         échéance ajoutée y compris (bug corrigé ici, cf. rapport). -->
+                    <div th:if="${contrat.statut != null && (contrat.statut.name() == 'RESILIER' || contrat.statut.name() == 'EXPIRE')}">
+                        <input type="hidden" name="statut" th:value="${contrat.statut}"/>
+                        <p th:if="${contrat.statut.name() == 'RESILIER'}" class="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                             Résilié — utilisez l'action "Résilier" depuis la fiche contrat pour revenir sur ce statut.
                         </p>
+                        <p th:if="${contrat.statut.name() == 'EXPIRE'}" class="w-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+                            Expiré — recalculé automatiquement d'après la date de fin, non modifiable depuis ce formulaire. Renouvelez le contrat depuis sa fiche pour reprendre l'emplacement.
+                        </p>
                     </div>
-                    <select th:unless="${contrat.statut != null && contrat.statut.name() == 'RESILIER'}" name="statut" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
+                    <select th:if="${contrat.statut == null || (contrat.statut.name() != 'RESILIER' && contrat.statut.name() != 'EXPIRE')}" name="statut" required class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                         <option value="">Sélectionner un statut</option>
                         <option value="EN_ATTENTE" th:selected="${contrat.statut != null && contrat.statut.name() == 'EN_ATTENTE'}">En Attente</option>
                         <option value="VALIDER" th:selected="${contrat.statut != null && contrat.statut.name() == 'VALIDER'}">Validé</option>

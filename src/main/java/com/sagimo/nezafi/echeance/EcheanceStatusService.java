@@ -46,7 +46,10 @@ public class EcheanceStatusService {
     public void recalculerStatut(Echeance echeance) {
         BigDecimal totalPaye = totalPaye(echeance.getId());
 
-        if (totalPaye.compareTo(echeance.getMontantDu()) >= 0) {
+        // montantDu facultatif (cf. Echeance) : sans montant à comparer, une échéance ne peut
+        // jamais être déduite PAYEE automatiquement — elle suit alors uniquement la règle de
+        // date ci-dessous (EN_RETARD / EN_COURS), même si des paiements lui sont déjà rattachés.
+        if (echeance.getMontantDu() != null && totalPaye.compareTo(echeance.getMontantDu()) >= 0) {
             echeance.setStatut(StatutEcheance.PAYEE);
         } else if (echeance.getDateEcheance().isBefore(LocalDate.now())) {
             echeance.setStatut(StatutEcheance.EN_RETARD);

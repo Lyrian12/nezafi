@@ -193,7 +193,8 @@
                         Échéance du <span th:text="${#temporals.format(echeance.dateEcheance, 'dd-MM-yyyy')}">01-01-2026</span>
                     </p>
                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                        Dû : <span class="font-semibold" th:text="${#numbers.formatDecimal(echeance.montantDu, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</span>
+                        Dû : <span class="font-semibold"
+                                    th:text="${echeance.montantDu != null} ? ${#numbers.formatDecimal(echeance.montantDu, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA' : 'Non renseigné'">0 FCFA</span>
                         — Payé : <span class="font-semibold" th:text="${#numbers.formatDecimal(totalPayeParEcheance.get(echeance.id), 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</span>
                     </p>
                 </div>
