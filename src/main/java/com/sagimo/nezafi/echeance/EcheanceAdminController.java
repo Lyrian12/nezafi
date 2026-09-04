@@ -54,6 +54,7 @@ public class EcheanceAdminController {
     // écriture réservée à ADMIN/SECRETARIAT (COMPTABLE ne modifie jamais rien).
     private static final String LECTURE_STAFF = "hasAnyRole('ADMIN','SECRETARIAT','COMPTABLE')";
     private static final String EDITION_STAFF = "hasAnyRole('ADMIN','SECRETARIAT')";
+    private static final String ADMIN_SEUL = "hasRole('ADMIN')";
 
     private final EcheanceRepository echeanceRepository;
     private final PaiementRepository paiementRepository;
@@ -346,6 +347,138 @@ public class EcheanceAdminController {
     @PreAuthorize(LECTURE_STAFF)
     public String echeancesEnRetard() {
         return "redirect:/admin/echeances?statut=EN_RETARD";
+    }
+
+    /** Fiche dédiée d'une échéance — accessible depuis la fiche contrat (liste des échéances)
+     *  et depuis /admin/echeances (liste générale), pour modifier/supprimer une échéance sans
+     *  forcément repasser par le contrat entier. */
+    @GetMapping("/echeances/{id}")
+    @PreAuthorize(LECTURE_STAFF)
+    public String echeanceDetail(@PathVariable Long id, Model model) {
+        Echeance echeance = echeanceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Echeance not found"));
+        echeanceStatusService.recalculerStatut(echeance);
+
+        List<Paiement> paiements = paiementRepository.findByEcheanceId(id);
+        Map<Long, Boolean> recuParPaiement = new HashMap<>();
+        for (Paiement paiement : paiements) {
+            recuParPaiement.put(paiement.getId(), !documentJointService.lister("Paiement", paiement.getId()).isEmpty());
+        }
+
+        model.addAttribute("echeance", echeance);
+        model.addAttribute("paiements", paiements);
+        model.addAttribute("totalPaye", echeanceStatusService.totalPaye(id));
+        model.addAttribute("recuParPaiement", recuParPaiement);
+        return "admin-echeance-detail";
+    }
+
+    @GetMapping("/echeances/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
+    public String editEcheancePage(@PathVariable Long id, Model model) {
+        model.addAttribute("echeance", echeanceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Echeance not found")));
+        return "admin-echeance-form";
+    }
+
+    /** Modifie une échéance déjà créée — date, montant (facultatif, cf. Echeance.montantDu) et
+     *  type. Le statut n'est jamais saisi ici : il reste dérivé automatiquement de la date et
+     *  des paiements (cf. EcheanceStatusService), comme pour toute échéance. Ne recalcule et ne
+     *  modifie JAMAIS le montant d'une autre échéance ni du contrat — chaque échéance reste
+     *  ce qui a été négocié au cas par cas, y compris à la main après coup. */
+    @PostMapping("/echeances/edit/{id}")
+    @PreAuthorize(EDITION_STAFF)
+    public String editEcheance(
+            @PathVariable Long id,
+            @RequestParam String dateEcheance,
+            @RequestParam(required = false) BigDecimal montantDu,
+            @RequestParam String type,
+            Authentication authentication,
+            RedirectAttributes redirectAttributes,
+            Model model) {
+
+        Echeance echeance = echeanceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Echeance not found"));
+
+        if (montantDu != null && montantDu.signum() <= 0) {
+            model.addAttribute("error", "Le montant, s'il est renseigné, doit être strictement positif.");
+            Echeance candidat = new Echeance();
+            candidat.setId(id);
+            candidat.setContrat(echeance.getContrat());
+            try {
+                candidat.setDateEcheance(LocalDate.parse(dateEcheance));
+            } catch (RuntimeException ignored) {
+                // Date au format invalide : le formulaire l'affichera simplement vide.
+            }
+            candidat.setMontantDu(montantDu);
+            try {
+                candidat.setType(TypeEcheance.valueOf(type));
+            } catch (RuntimeException ignored) {
+                // Type invalide : le formulaire réaffichera simplement aucune option cochée.
+            }
+            model.addAttribute("echeance", candidat);
+            return "admin-echeance-form";
+        }
+
+        Map<String, Object> avant = snapshotEcheance(echeance);
+
+        echeance.setDateEcheance(LocalDate.parse(dateEcheance));
+        echeance.setMontantDu(montantDu);
+        echeance.setType(TypeEcheance.valueOf(type));
+        // Une date d'échéance modifiée peut faire basculer EN_COURS <-> EN_RETARD ; un montant
+        // modifié peut faire basculer (dé)PAYEE — recalcul immédiat plutôt que d'attendre le
+        // prochain affichage paresseux, pour que la fiche reflète tout de suite le bon statut.
+        echeanceStatusService.recalculerStatut(echeance);
+
+        Map<String, Object> apres = snapshotEcheance(echeance);
+        if (!avant.equals(apres)) {
+            auditService.enregistrer(currentAdmin(authentication), TypeActionAudit.MODIFICATION, "Echeance", id, avant, apres);
+        }
+
+        redirectAttributes.addFlashAttribute("success", "Échéance modifiée.");
+        return "redirect:/admin/echeances/" + id;
+    }
+
+    /** Instantané des seuls champs d'Echeance suivis par le journal d'audit. */
+    private Map<String, Object> snapshotEcheance(Echeance echeance) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("dateEcheance", echeance.getDateEcheance());
+        snapshot.put("montantDu", echeance.getMontantDu());
+        snapshot.put("type", echeance.getType());
+        snapshot.put("statut", echeance.getStatut());
+        return snapshot;
+    }
+
+    // POST (pas GET) : même raison que les autres suppressions de l'application (jeton CSRF).
+    // Une échéance supprimée entraîne en cascade (JPA cascade=ALL, cf. Echeance.paiements) la
+    // suppression de tous ses paiements — potentiellement un historique financier réel déjà
+    // encaissé. Même logique de confirmation en deux temps que les autres suppressions en
+    // cascade (emplacements, contrats, clients) : un premier POST sans confirmer=true ne
+    // supprime rien s'il existe des paiements, il prévient d'abord.
+    @PostMapping("/echeances/delete/{id}")
+    @PreAuthorize(ADMIN_SEUL)
+    public String deleteEcheance(@PathVariable Long id, @RequestParam(required = false, defaultValue = "false") boolean confirmer,
+                                  Authentication authentication, RedirectAttributes redirectAttributes) {
+        Echeance echeance = echeanceRepository.findById(id).orElse(null);
+        if (echeance == null) {
+            redirectAttributes.addFlashAttribute("error", "Échéance introuvable.");
+            return "redirect:/admin/echeances";
+        }
+
+        List<Paiement> paiementsLies = paiementRepository.findByEcheanceId(id);
+        if (!paiementsLies.isEmpty() && !confirmer) {
+            redirectAttributes.addFlashAttribute("warning",
+                    "Cette échéance a " + paiementsLies.size() + " paiement(s) enregistré(s) : "
+                            + "supprimer l'échéance effacera aussi cet historique financier. Confirmer la suppression ?");
+            redirectAttributes.addFlashAttribute("demanderConfirmationSuppression", true);
+            return "redirect:/admin/echeances/" + id;
+        }
+
+        Long contratId = echeance.getContrat().getId();
+        Map<String, Object> avant = snapshotEcheance(echeance);
+        echeanceRepository.deleteById(id);
+        auditService.enregistrer(currentAdmin(authentication), TypeActionAudit.SUPPRESSION, "Echeance", id, avant, null);
+
+        return "redirect:/admin/contracts/" + contratId;
     }
 
     /** Ordre d'affichage par défaut du tableau des échéances : en retard d'abord (le plus

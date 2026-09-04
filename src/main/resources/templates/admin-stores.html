@@ -64,7 +64,7 @@
     <form th:action="@{/admin/stores}" method="get" class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 mb-6 flex flex-wrap gap-3 items-end">
         <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Palier</label>
-            <select name="palier" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
+            <select name="palier" class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
                 <option value="">Tous</option>
                 <option th:each="p : ${paliers}" th:value="${p}"
                         th:text="${p.libelle}"
@@ -73,14 +73,14 @@
         </div>
         <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Statut</label>
-            <select name="statut" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
+            <select name="statut" class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
                 <option value="">Tous</option>
                 <option th:each="s : ${statuts}" th:value="${s}" th:text="${s}" th:selected="${statutFiltre == s}">Statut</option>
             </select>
         </div>
         <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Catégorie</label>
-            <select name="categorie" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
+            <select name="categorie" class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-slate-400">
                 <option value="">Toutes</option>
                 <option th:each="c : ${categories}" th:value="${c}"
                         th:text="${#strings.capitalize(#strings.toLowerCase(c.name()))}"
@@ -89,19 +89,19 @@
         </div>
         <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Prix min (FCFA)</label>
-            <input type="number" step="0.01" name="prixMin" th:value="${prixMin}" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs w-28 focus:outline-none focus:border-slate-400">
+            <input type="number" step="0.01" name="prixMin" th:value="${prixMin}" class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs w-28 focus:outline-none focus:border-slate-400">
         </div>
         <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Prix max (FCFA)</label>
-            <input type="number" step="0.01" name="prixMax" th:value="${prixMax}" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs w-28 focus:outline-none focus:border-slate-400">
+            <input type="number" step="0.01" name="prixMax" th:value="${prixMax}" class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs w-28 focus:outline-none focus:border-slate-400">
         </div>
         <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Superficie min (m²)</label>
-            <input type="number" step="0.01" name="superficieMin" th:value="${superficieMin}" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs w-28 focus:outline-none focus:border-slate-400">
+            <input type="number" step="0.01" name="superficieMin" th:value="${superficieMin}" class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs w-28 focus:outline-none focus:border-slate-400">
         </div>
         <div>
             <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1">Superficie max (m²)</label>
-            <input type="number" step="0.01" name="superficieMax" th:value="${superficieMax}" class="bg-slate-50 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs w-28 focus:outline-none focus:border-slate-400">
+            <input type="number" step="0.01" name="superficieMax" th:value="${superficieMax}" class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs w-28 focus:outline-none focus:border-slate-400">
         </div>
         <button type="submit" class="bg-slate-900 dark:bg-slate-700 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-colors">Filtrer</button>
         <a th:href="@{/admin/stores}" class="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 px-2 py-2">Réinitialiser</a>

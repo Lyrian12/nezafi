@@ -95,7 +95,7 @@
             <form th:action="@{/admin/dashboard}" method="get" class="mb-4">
                 <input type="hidden" name="emplacementId" th:if="${emplacementFiltre != null}" th:value="${emplacementFiltre}"/>
                 <select name="statutEcheance" onchange="this.form.submit()"
-                        class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-100 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-slate-400">
+                        class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-slate-400">
                     <option value="" th:selected="${statutEcheanceFiltre == null}">Toutes les échéances</option>
                     <option th:each="s : ${statutsEcheance}" th:value="${s}" th:text="${s}" th:selected="${statutEcheanceFiltre == s}">Statut</option>
                 </select>
@@ -281,7 +281,7 @@
                     <input type="hidden" name="statutEcheance" th:if="${statutEcheanceFiltre != null}" th:value="${statutEcheanceFiltre}"/>
                     <label class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase" for="emplacementId">Nom de l'emplacement</label>
                     <select id="emplacementId" name="emplacementId" onchange="this.form.submit()"
-                            class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 dark:text-slate-100 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-slate-400">
+                            class="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-slate-400">
                         <option value="">Tous les emplacements</option>
                         <option th:each="e : ${emplacements}" th:value="${e.id}" th:text="${e.name}" th:selected="${emplacementFiltre == e.id}">Emplacement</option>
                     </select>
