@@ -267,6 +267,43 @@ public class AdminController {
         return "admin-store-form";
     }
 
+    /** Réaffiche le formulaire emplacement avec l'erreur ET tout ce que l'utilisateur avait déjà
+     *  saisi (jamais un formulaire vidé qui obligerait à tout ressaisir) — même principe que
+     *  rejectContractForm/contratPourRejet et rejectClientForm pour les autres formulaires. */
+    private String rejectStoreForm(Model model, String error, Emplacement rejected) {
+        model.addAttribute("error", error);
+        model.addAttribute("emplacement", rejected);
+        return "admin-store-form";
+    }
+
+    /** Reconstruit un Emplacement non persisté pour re-remplir le formulaire après un rejet.
+     *  {@code id} doit être null pour une création (le formulaire redirige alors vers /add) et
+     *  l'id existant pour une édition (vers /edit/{id}) — cf. admin-store-form.html. */
+    private Emplacement emplacementPourRejet(Long id, String name, String statut, String palier,
+                                              BigDecimal superficie, BigDecimal prix, String categorie) {
+        Emplacement rejected = new Emplacement();
+        rejected.setId(id);
+        rejected.setName(name);
+        try {
+            rejected.setStatut(StatutEmplacement.valueOf(statut));
+        } catch (RuntimeException ignored) {
+            // Statut invalide ou absent : le formulaire affichera simplement "Sélectionner...".
+        }
+        try {
+            rejected.setPalier(Palier.valueOf(palier));
+        } catch (RuntimeException ignored) {
+            // Idem palier.
+        }
+        rejected.setSuperficie(superficie);
+        rejected.setPrix(prix);
+        try {
+            rejected.setCategorie(CategorieEmplacement.valueOf(categorie));
+        } catch (RuntimeException ignored) {
+            // Idem catégorie.
+        }
+        return rejected;
+    }
+
     @PostMapping("/stores/add")
     @PreAuthorize(EDITION_STAFF)
     public String addStore(
@@ -277,15 +314,15 @@ public class AdminController {
             @RequestParam BigDecimal superficie,
             @RequestParam(required = false) BigDecimal prix,
             @RequestParam String categorie,
-            RedirectAttributes redirectAttributes) throws IOException {
+            Model model) throws IOException {
 
         if (superficie.signum() <= 0) {
-            redirectAttributes.addFlashAttribute("error", "La superficie doit être un montant strictement positif.");
-            return "redirect:/admin/stores/add";
+            return rejectStoreForm(model, "La superficie doit être un montant strictement positif.",
+                    emplacementPourRejet(null, name, statut, palier, superficie, prix, categorie));
         }
         if (prix != null && prix.signum() <= 0) {
-            redirectAttributes.addFlashAttribute("error", "Le prix, s'il est renseigné, doit être strictement positif.");
-            return "redirect:/admin/stores/add";
+            return rejectStoreForm(model, "Le prix, s'il est renseigné, doit être strictement positif.",
+                    emplacementPourRejet(null, name, statut, palier, superficie, prix, categorie));
         }
 
         Emplacement emplacement = new Emplacement();
@@ -328,15 +365,15 @@ public class AdminController {
             @RequestParam(required = false) BigDecimal prix,
             @RequestParam String categorie,
             Authentication authentication,
-            RedirectAttributes redirectAttributes) {
+            Model model) {
 
         if (superficie.signum() <= 0) {
-            redirectAttributes.addFlashAttribute("error", "La superficie doit être un montant strictement positif.");
-            return "redirect:/admin/stores/edit/" + id;
+            return rejectStoreForm(model, "La superficie doit être un montant strictement positif.",
+                    emplacementPourRejet(id, name, statut, palier, superficie, prix, categorie));
         }
         if (prix != null && prix.signum() <= 0) {
-            redirectAttributes.addFlashAttribute("error", "Le prix, s'il est renseigné, doit être strictement positif.");
-            return "redirect:/admin/stores/edit/" + id;
+            return rejectStoreForm(model, "Le prix, s'il est renseigné, doit être strictement positif.",
+                    emplacementPourRejet(id, name, statut, palier, superficie, prix, categorie));
         }
 
         Emplacement emplacement = emplacementRepository.findById(id)
@@ -501,52 +538,58 @@ public class AdminController {
             Authentication authentication,
             Model model) {
 
+        // Ajouté une seule fois ici, avant toute validation : si le formulaire est rejeté plus
+        // bas (n'importe quelle branche), le Model porte déjà les lignes d'échéances telles que
+        // saisies — admin-contract-form.html les réaffiche pré-remplies au lieu d'un échéancier
+        // vide qu'il faudrait ressaisir depuis le début.
+        model.addAttribute("echeancesSaisies", construireEcheancesSaisies(echeanceDates, echeanceMontants, echeanceTypes));
+
         Emplacement emplacement = emplacementRepository.findById(emplacementId)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
         User locataire = userRepository.findById(locataireId)
                 .orElseThrow(() -> new RuntimeException("Locataire not found"));
+        // Résolu ici (avant toute validation, simple lookup) plutôt qu'après : contratPourRejet
+        // en a besoin pour porter la bannière "Renouvellement du contrat #X" et le champ caché
+        // contratPrecedentId sur CHAQUE rejet plus bas, pas seulement celui qui le vérifie.
+        Contrat contratPrecedent = contratPrecedentId == null ? null
+                : contratRepository.findById(contratPrecedentId).orElse(null);
 
         LocalDate dateDebutParsed = parseDateOuNull(dateDebut);
         LocalDate dateFinParsed = parseDateOuNull(dateFin);
         if (dateDebutParsed != null && dateFinParsed != null && dateDebutParsed.isAfter(dateFinParsed)) {
             return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.",
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
-                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(null, emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contratPrecedent));
         }
         if (montantLoyer.signum() <= 0) {
             return rejectContractForm(model, "Le loyer doit être un montant strictement positif.",
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
-                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(null, emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contratPrecedent));
         }
         String erreurCaution = validerCaution(montantCaution, dureeCautionMois);
         if (erreurCaution != null) {
             return rejectContractForm(model, erreurCaution,
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
-                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(null, emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contratPrecedent));
         }
 
         StatutContrat statutEnum = parseStatutOuNull(statut);
         if (statutEnum == null) {
             return rejectContractForm(model, "Statut invalide : sélectionnez un statut dans la liste.",
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
-                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(null, emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contratPrecedent));
         }
         if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacement.getId(), null)) {
             return rejectContractForm(model,
                     "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.",
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
-                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(null, emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contratPrecedent));
         }
-
-        Contrat contratPrecedent = null;
-        if (contratPrecedentId != null) {
-            contratPrecedent = contratRepository.findById(contratPrecedentId).orElse(null);
-            if (contratPrecedent != null && !peutEtreRenouvele(contratPrecedent)) {
-                return rejectContractForm(model,
-                        "Le renouvellement n'est possible qu'à partir d'un contrat résilié ou expiré.",
-                        contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
-                                statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
-            }
+        if (contratPrecedent != null && !peutEtreRenouvele(contratPrecedent)) {
+            return rejectContractForm(model,
+                    "Le renouvellement n'est possible qu'à partir d'un contrat résilié ou expiré.",
+                    contratPourRejet(null, emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contratPrecedent));
         }
 
         Contrat contrat = new Contrat();
@@ -569,8 +612,8 @@ public class AdminController {
         String erreurEcheances = construireEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes, echeances);
         if (erreurEcheances != null) {
             return rejectContractForm(model, erreurEcheances,
-                    contratPourRejet(emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
-                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois));
+                    contratPourRejet(null, emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contratPrecedent));
         }
 
         contratRepository.save(contrat);
@@ -623,11 +666,18 @@ public class AdminController {
     }
 
     /** Reconstruit un Contrat non persisté pour re-remplir le formulaire après un rejet. */
-    private Contrat contratPourRejet(Emplacement emplacement, User locataire, String dateDebut, String dateFin,
+    // id: null pour une création (le formulaire redirige alors vers /add, cf.
+    // admin-contract-form.html), l'id existant pour une édition (vers /edit/{id}). contratPrecedent
+    // : reporté tel quel (jamais reconstruit depuis les params — c'est une relation, pas un champ
+    // de formulaire) pour que la bannière "Renouvellement du contrat #X" et le champ caché
+    // contratPrecedentId (qui la porte d'une soumission à l'autre) survivent à un rejet.
+    private Contrat contratPourRejet(Long id, Emplacement emplacement, User locataire, String dateDebut, String dateFin,
                                       String termes, String activite, String nomEnseigne, String statut,
                                       BigDecimal montantLoyer, Integer dureeLoyerMois,
-                                      BigDecimal montantCaution, Integer dureeCautionMois) {
+                                      BigDecimal montantCaution, Integer dureeCautionMois,
+                                      Contrat contratPrecedent) {
         Contrat rejected = new Contrat();
+        rejected.setId(id);
         rejected.setEmplacement(emplacement);
         rejected.setLocataire(locataire);
         try {
@@ -644,6 +694,7 @@ public class AdminController {
         rejected.setDureeLoyerMois(dureeLoyerMois);
         rejected.setMontantCaution(montantCaution);
         rejected.setDureeCautionMois(dureeCautionMois);
+        rejected.setContratPrecedent(contratPrecedent);
         return rejected;
     }
 
@@ -706,6 +757,10 @@ public class AdminController {
             Authentication authentication,
             Model model) {
 
+        // Même raison qu'addContract ci-dessus : disponible dans le Model avant toute validation,
+        // pour que n'importe quelle branche de rejet plus bas réaffiche l'échéancier tel que saisi.
+        model.addAttribute("echeancesSaisies", construireEcheancesSaisies(echeanceDates, echeanceMontants, echeanceTypes));
+
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
 
@@ -714,26 +769,46 @@ public class AdminController {
         User locataire = userRepository.findById(locataireId)
                 .orElseThrow(() -> new RuntimeException("Locataire not found"));
 
+        // Reconstruit depuis les valeurs SOUMISES (pas `contrat`, encore intact à ce stade — ses
+        // setters n'ont pas encore été appelés) : sur un rejet, le formulaire doit réafficher ce
+        // que l'utilisateur vient de taper, pas les anciennes valeurs de la base qui donneraient
+        // l'impression que la saisie a été perdue. Même id (édition) et contratPrecedent que le
+        // contrat existant — inchangés par ce formulaire.
         LocalDate dateDebutParsed = parseDateOuNull(dateDebut);
         LocalDate dateFinParsed = parseDateOuNull(dateFin);
         if (dateDebutParsed != null && dateFinParsed != null && dateDebutParsed.isAfter(dateFinParsed)) {
-            return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.", contrat, false);
+            return rejectContractForm(model, "La date de début ne peut pas être postérieure à la date de fin.",
+                    contratPourRejet(contrat.getId(), emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contrat.getContratPrecedent()),
+                    false);
         }
         if (montantLoyer.signum() <= 0) {
-            return rejectContractForm(model, "Le loyer doit être un montant strictement positif.", contrat, false);
+            return rejectContractForm(model, "Le loyer doit être un montant strictement positif.",
+                    contratPourRejet(contrat.getId(), emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contrat.getContratPrecedent()),
+                    false);
         }
         String erreurCaution = validerCaution(montantCaution, dureeCautionMois);
         if (erreurCaution != null) {
-            return rejectContractForm(model, erreurCaution, contrat, false);
+            return rejectContractForm(model, erreurCaution,
+                    contratPourRejet(contrat.getId(), emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contrat.getContratPrecedent()),
+                    false);
         }
 
         StatutContrat statutEnum = parseStatutOuNull(statut);
         if (statutEnum == null) {
-            return rejectContractForm(model, "Statut invalide : sélectionnez un statut dans la liste.", contrat, false);
+            return rejectContractForm(model, "Statut invalide : sélectionnez un statut dans la liste.",
+                    contratPourRejet(contrat.getId(), emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contrat.getContratPrecedent()),
+                    false);
         }
         if (statutEnum == StatutContrat.VALIDER && aUnAutreContratValide(emplacementId, contrat.getId())) {
             return rejectContractForm(model,
-                    "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.", contrat, false);
+                    "Cet emplacement a déjà un contrat validé en cours : résiliez-le avant d'en valider un nouveau.",
+                    contratPourRejet(contrat.getId(), emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contrat.getContratPrecedent()),
+                    false);
         }
 
         // Le statut RESILIER n'est jamais soumis par le <select> du formulaire générique
@@ -746,7 +821,10 @@ public class AdminController {
         List<Echeance> echeances = new ArrayList<>();
         String erreurEcheances = construireEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes, echeances);
         if (erreurEcheances != null) {
-            return rejectContractForm(model, erreurEcheances, contrat, false);
+            return rejectContractForm(model, erreurEcheances,
+                    contratPourRejet(contrat.getId(), emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
+                            statut, montantLoyer, dureeLoyerMois, montantCaution, dureeCautionMois, contrat.getContratPrecedent()),
+                    false);
         }
 
         contrat.setEmplacement(emplacement);
@@ -836,6 +914,24 @@ public class AdminController {
         return null;
     }
 
+    /** Capture brute (non validée) des lignes d'échéances telles que soumises par le formulaire,
+     *  pour les réafficher pré-remplies si le formulaire est rejeté plus loin (contrat invalide,
+     *  échéance invalide...) — jamais un échéancier qu'il faudrait ressaisir depuis le début.
+     *  Même garde-fou d'indexation que construireEcheances (cf. son commentaire) : `dates` fait
+     *  autorité, `montants`/`types` sont accédés avec un contrôle de bornes. */
+    private List<EcheanceSaisie> construireEcheancesSaisies(String[] dates, String[] montants, String[] types) {
+        if (dates == null) {
+            return List.of();
+        }
+        List<EcheanceSaisie> saisies = new ArrayList<>();
+        for (int i = 0; i < dates.length; i++) {
+            String montant = (montants != null && i < montants.length) ? montants[i] : null;
+            String type = (types != null && i < types.length) ? types[i] : null;
+            saisies.add(new EcheanceSaisie(dates[i], montant, type));
+        }
+        return saisies;
+    }
+
     // POST (pas GET) : voir le commentaire sur deleteStore ci-dessus, même raison.
     @PostMapping("/contracts/delete/{id}")
     @PreAuthorize(ADMIN_SEUL)
@@ -866,6 +962,11 @@ public class AdminController {
 
         if (motif == null || motif.isBlank()) {
             redirectAttributes.addFlashAttribute("error", "Le motif de résiliation est obligatoire.");
+            // Un motif peut être un texte long : le réafficher (via un attribut flash, qui
+            // survit à ce redirect) évite de le faire retaper en entier pour une simple case
+            // "date de préavis" oubliée. Cf. admin-contract-detail.html.
+            redirectAttributes.addFlashAttribute("motifSaisi", motif);
+            redirectAttributes.addFlashAttribute("datePreavisSaisie", datePreavis);
             return "redirect:/admin/contracts/" + id;
         }
 

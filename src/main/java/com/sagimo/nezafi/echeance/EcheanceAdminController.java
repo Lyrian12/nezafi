@@ -309,12 +309,19 @@ public class EcheanceAdminController {
         LocalDate dateDebutParsed = (dateDebut == null || dateDebut.isBlank()) ? null : LocalDate.parse(dateDebut);
         LocalDate dateFinParsed = (dateFin == null || dateFin.isBlank()) ? null : LocalDate.parse(dateFin);
 
+        // Tri par défaut par statut (en retard d'abord, le plus actionnable, puis en cours, puis
+        // payées en dernier) puis par date la plus ancienne en premier dans chaque groupe — même
+        // ordre que le widget "Échéances" du tableau de bord (cf. AdminDashboardController.
+        // prioriteStatutEcheance). Le filtre ?statut=... ci-dessus continue de s'appliquer
+        // normalement par-dessus (il ne restreint qu'à un seul statut à la fois, rendant ce tri
+        // sans effet visible tant qu'il est actif).
         List<Echeance> echeances = echeanceRepository.findAll().stream()
                 .filter(e -> statut == null || e.getStatut() == statut)
                 .filter(e -> type == null || e.getType() == type)
                 .filter(e -> dateDebutParsed == null || !e.getDateEcheance().isBefore(dateDebutParsed))
                 .filter(e -> dateFinParsed == null || !e.getDateEcheance().isAfter(dateFinParsed))
-                .sorted(Comparator.comparing(Echeance::getDateEcheance))
+                .sorted(Comparator.comparing((Echeance e) -> prioriteStatutEcheance(e.getStatut()))
+                        .thenComparing(Echeance::getDateEcheance))
                 .toList();
 
         Map<Long, BigDecimal> totalPayeParEcheance = new HashMap<>();
@@ -339,5 +346,16 @@ public class EcheanceAdminController {
     @PreAuthorize(LECTURE_STAFF)
     public String echeancesEnRetard() {
         return "redirect:/admin/echeances?statut=EN_RETARD";
+    }
+
+    /** Ordre d'affichage par défaut du tableau des échéances : en retard d'abord (le plus
+     *  actionnable), puis en cours, puis payées — même principe que
+     *  AdminDashboardController.prioriteStatutEcheance pour le widget dashboard. */
+    private int prioriteStatutEcheance(StatutEcheance statut) {
+        return switch (statut) {
+            case EN_RETARD -> 0;
+            case EN_COURS -> 1;
+            case PAYEE -> 2;
+        };
     }
 }
