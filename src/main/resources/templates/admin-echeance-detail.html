@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Détail échéance</title>
+    <th:block th:replace="~{fragments/theme :: head}"></th:block>
+</head>
+<body class="bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased min-h-screen">
+
+<div th:replace="~{fragments/admin-nav :: logoutDock}"></div>
+
+<!-- CONTENU PRINCIPAL -->
+<main class="max-w-3xl mx-auto p-6 md:p-10 my-6 md:my-10 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 animate-panel-in">
+    <!-- Top bar -->
+    <div class="flex justify-end items-center mb-8 gap-3">
+        <div th:replace="~{fragments/admin-nav :: panelClose}"></div>
+        <div th:replace="~{fragments/admin-nav :: globalSearch}"></div>
+        <div th:replace="~{fragments/theme :: toggleButton}"></div>
+    </div>
+
+    <!-- En-tête -->
+    <div class="mb-8">
+        <a th:href="@{/admin/contracts/{id}(id=${echeance.contrat.id})}" class="text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300">← Retour au contrat</a>
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight mt-4">
+            Échéance du <span th:text="${#temporals.format(echeance.dateEcheance, 'dd-MM-yyyy')}">01-01-2026</span>
+        </h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Contrat #<a th:href="@{/admin/contracts/{id}(id=${echeance.contrat.id})}" class="underline hover:text-slate-700 dark:hover:text-slate-200" th:text="${echeance.contrat.id}">1</a>
+            — <span th:text="${echeance.contrat.emplacement.name}">Emplacement</span>
+            (<span th:text="${echeance.contrat.locataire.prenom + ' ' + echeance.contrat.locataire.nom}">Locataire</span>)
+        </p>
+        <div class="mt-2 flex items-center gap-3">
+            <span class="inline-flex items-center bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase px-2 py-0.5 rounded-md" th:text="${echeance.type}">LOYER</span>
+            <span class="inline-flex items-center font-medium text-xs"
+                  th:classappend="${echeance.statut.name() == 'PAYEE'} ? 'text-green-700 dark:text-green-400' : (${echeance.statut.name() == 'EN_RETARD'} ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400')">
+                <span class="w-1.5 h-1.5 rounded-full mr-2"
+                      th:classappend="${echeance.statut.name() == 'PAYEE'} ? 'bg-green-500' : (${echeance.statut.name() == 'EN_RETARD'} ? 'bg-red-500' : 'bg-orange-400')"></span>
+                <span th:text="${echeance.statut}">EN_COURS</span>
+            </span>
+            <a th:if="${peutModifier}" th:href="@{/admin/echeances/edit/{id}(id=${echeance.id})}"
+               class="inline-flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-medium hover:text-slate-600 dark:hover:text-slate-300 underline">
+                <span class="w-3.5 h-3.5" th:insert="~{fragments/icons :: pencil}"></span>
+                Modifier
+            </a>
+        </div>
+    </div>
+
+    <div th:if="${error}" class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6" th:text="${error}">Erreur</div>
+    <div th:if="${warning}" class="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6">
+        <span class="w-4 h-4 shrink-0" th:insert="~{fragments/icons :: alertTriangle}"></span>
+        <span th:text="${warning}">Avertissement</span>
+    </div>
+    <div th:if="${success}" class="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6" th:text="${success}">Succès</div>
+
+    <!-- Montants -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
+        <div class="grid grid-cols-2 gap-6 text-xs">
+            <div>
+                <p class="text-slate-400 dark:text-slate-500 uppercase text-[10px] font-bold mb-1">Montant dû</p>
+                <p th:if="${echeance.montantDu == null}" class="font-semibold text-slate-400 dark:text-slate-500">Non renseigné</p>
+                <p th:if="${echeance.montantDu != null}" class="font-semibold text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(echeance.montantDu, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</p>
+            </div>
+            <div>
+                <p class="text-slate-400 dark:text-slate-500 uppercase text-[10px] font-bold mb-1">Montant payé</p>
+                <p class="font-semibold text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(totalPaye, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paiements -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
+        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Paiements</h2>
+        <div th:if="${#lists.isEmpty(paiements)}" class="text-sm text-slate-400 dark:text-slate-500 py-2">
+            Aucun paiement enregistré pour cette échéance. Enregistrez-en un depuis la fiche du contrat.
+        </div>
+        <div th:if="${not #lists.isEmpty(paiements)}" class="space-y-2">
+            <div th:each="paiement : ${paiements}" class="flex justify-between items-center text-xs bg-slate-50 dark:bg-slate-800/60 rounded-xl px-4 py-3">
+                <span>
+                    <span class="font-semibold text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(paiement.montantPaye, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</span>
+                    le <span th:text="${#temporals.format(paiement.datePaiement, 'dd-MM-yyyy')}">01-01-2026</span>
+                    — enregistré par <span th:text="${paiement.adminEnregistrant.prenom + ' ' + paiement.adminEnregistrant.nom}">Admin</span>
+                </span>
+                <span th:if="${recuParPaiement.get(paiement.id)}" class="space-x-2">
+                    <button type="button" th:onclick="'apercuDocument(\'' + @{/admin/paiements/{id}/recu(id=${paiement.id},apercu=true)} + '\')'"
+                            class="text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100">Aperçu</button>
+                    <a th:href="@{/admin/paiements/{id}/recu(id=${paiement.id})}" class="text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100">Reçu</a>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suppression — réservée à ADMIN. Si des paiements sont rattachés, le premier POST
+         (sans confirmer=true) ne supprime rien : il affiche l'avertissement ci-dessus et
+         ce second formulaire, qui doit être soumis explicitement pour aller au bout. -->
+    <div th:if="${estAdmin}" class="bg-white dark:bg-slate-900 rounded-2xl border border-red-200 dark:border-red-900/60 shadow-sm p-6">
+        <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-4">Zone de suppression</p>
+        <form th:if="${demanderConfirmationSuppression}" th:action="@{/admin/echeances/delete/{id}(id=${echeance.id})}" method="post">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <input type="hidden" name="confirmer" value="true"/>
+            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl transition-colors text-xs">
+                Confirmer la suppression malgré l'historique
+            </button>
+        </form>
+        <form th:unless="${demanderConfirmationSuppression}" th:action="@{/admin/echeances/delete/{id}(id=${echeance.id})}" method="post"
+              onsubmit="return confirm('Supprimer cette échéance ?');">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit" class="w-full bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 font-bold py-2.5 rounded-xl transition-colors text-xs">
+                Supprimer cette échéance
+            </button>
+        </form>
+    </div>
+
+</main>
+
+<div th:replace="~{fragments/document-preview :: modal}"></div>
+<th:block th:replace="~{fragments/document-preview :: script}"></th:block>
+
+</body>
+</html>
