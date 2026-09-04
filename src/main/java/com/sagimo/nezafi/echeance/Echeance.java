@@ -36,7 +36,12 @@ public class Echeance {
     @Column(nullable = false)
     private LocalDate dateEcheance;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    // Facultatif, même raison que le prix d'un emplacement ou la caution d'un contrat :
+    // certains dossiers physiques repris n'ont pas ce montant connu avec certitude à la saisie.
+    // Sans montant, une échéance ne peut jamais être marquée PAYEE automatiquement (rien à
+    // comparer un paiement) — cf. EcheanceStatusService.recalculerStatut — mais reste
+    // normalement visible et modifiable (montant renseignable plus tard).
+    @Column(precision = 12, scale = 2)
     private BigDecimal montantDu;
 
     @Enumerated(EnumType.STRING)

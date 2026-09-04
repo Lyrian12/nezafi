@@ -44,3 +44,4 @@ cookies.txt
 .DS_Store
 
 .env
+*.bundle
