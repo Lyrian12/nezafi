@@ -909,6 +909,13 @@ public class AdminController {
         nouveau.setMontantCaution(ancien.getMontantCaution());
         nouveau.setDureeCautionMois(ancien.getDureeCautionMois());
         nouveau.setContratPrecedent(ancien);
+        // Date de début par défaut : le lendemain de la date de fin de l'ancien contrat, plutôt
+        // que de laisser le champ vide — cas le plus courant à un renouvellement (reconduction
+        // sans interruption). Reste librement modifiable si l'admin veut une autre date. Rien
+        // par défaut si l'ancien contrat n'avait pas de date de fin connue (cf. Contrat.dateFin).
+        if (ancien.getDateFin() != null) {
+            nouveau.setDateDebut(ancien.getDateFin().plusDays(1));
+        }
 
         model.addAttribute("contrat", nouveau);
         model.addAttribute("emplacements", emplacementRepository.findAll());
