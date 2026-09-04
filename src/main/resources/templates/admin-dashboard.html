@@ -50,7 +50,7 @@
                 </ul>
             </div>
             <div th:if="${not #lists.isEmpty(contratsEcartLoyer)}">
-                <p class="text-xs font-bold text-amber-800 dark:text-amber-300 mb-2" th:text="${contratsEcartLoyer.size()} + ' contrat(s) avec un écart significatif entre le loyer déclaré et l\'échéancier'">0 contrat(s)</p>
+                <p class="text-xs font-bold text-amber-800 dark:text-amber-300 mb-2" th:text="${contratsEcartLoyer.size()} + ' contrat(s) avec un écart significatif entre le loyer mensuel déclaré et l\'échéancier'">0 contrat(s)</p>
                 <ul class="space-y-1">
                     <li th:each="c : ${contratsEcartLoyer}" class="text-xs text-amber-800 dark:text-amber-300 flex justify-between items-center bg-white/60 dark:bg-slate-900/40 rounded-xl px-4 py-2">
                         <span>

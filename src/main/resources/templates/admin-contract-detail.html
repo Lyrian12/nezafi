@@ -60,15 +60,15 @@
     <div th:if="${warning}" class="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6" th:text="${warning}">Avertissement</div>
     <div th:if="${ecartLoyerSignificatif}" class="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-300 text-xs font-semibold rounded-xl px-4 py-3 mb-6">
         <span class="w-4 h-4 shrink-0" th:insert="~{fragments/icons :: alertTriangle}"></span>
-        Le total des échéances de type Loyer s'écarte significativement du montant de loyer déclaré sur ce contrat — à vérifier (négociation particulière, ou échéancier incomplet).
+        Le total des échéances de type Loyer s'écarte significativement du montant de loyer mensuel déclaré sur ce contrat — à vérifier (négociation particulière, ou échéancier incomplet).
     </div>
 
-    <!-- Loyer / Caution -->
+    <!-- Loyer mensuel / Caution -->
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 mb-6">
-        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Loyer &amp; caution</h2>
+        <h2 class="text-lg font-bold text-slate-900 dark:text-slate-100 mb-4">Loyer mensuel &amp; caution</h2>
         <div class="grid grid-cols-2 md:grid-cols-3 gap-6 text-xs">
             <div>
-                <p class="text-slate-400 dark:text-slate-500 uppercase text-[10px] font-bold mb-1">Loyer</p>
+                <p class="text-slate-400 dark:text-slate-500 uppercase text-[10px] font-bold mb-1">Loyer mensuel</p>
                 <p class="font-semibold text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(contrat.montantLoyer, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</p>
                 <p class="text-slate-500 dark:text-slate-400" th:text="${contrat.dureeLoyerMois} + ' mois couverts'">12 mois couverts</p>
             </div>
@@ -199,12 +199,24 @@
                         — Payé : <span class="font-semibold" th:text="${#numbers.formatDecimal(totalPayeParEcheance.get(echeance.id), 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</span>
                     </p>
                 </div>
-                <span class="inline-flex items-center font-medium text-xs"
-                      th:classappend="${echeance.statut.name() == 'PAYEE'} ? 'text-green-700 dark:text-green-400' : (${echeance.statut.name() == 'EN_RETARD'} ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400')">
-                    <span class="w-1.5 h-1.5 rounded-full mr-2"
-                          th:classappend="${echeance.statut.name() == 'PAYEE'} ? 'bg-green-500' : (${echeance.statut.name() == 'EN_RETARD'} ? 'bg-red-500' : 'bg-orange-400')"></span>
-                    <span th:text="${echeance.statut}">EN_COURS</span>
-                </span>
+                <div class="flex flex-col items-end gap-1.5">
+                    <span class="inline-flex items-center font-medium text-xs"
+                          th:classappend="${echeance.statut.name() == 'PAYEE'} ? 'text-green-700 dark:text-green-400' : (${echeance.statut.name() == 'EN_RETARD'} ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400')">
+                        <span class="w-1.5 h-1.5 rounded-full mr-2"
+                              th:classappend="${echeance.statut.name() == 'PAYEE'} ? 'bg-green-500' : (${echeance.statut.name() == 'EN_RETARD'} ? 'bg-red-500' : 'bg-orange-400')"></span>
+                        <span th:text="${echeance.statut}">EN_COURS</span>
+                    </span>
+                    <!-- Modifier/supprimer une échéance vivent sur sa fiche dédiée (le formulaire
+                         d'édition et la zone de suppression à deux étapes, réservée ADMIN, y sont
+                         déjà en place) — ces liens y renvoient plutôt que de dupliquer cette
+                         logique de confirmation ici. -->
+                    <span class="flex items-center gap-2 text-[11px] font-semibold">
+                        <a th:if="${peutModifier}" th:href="@{/admin/echeances/edit/{id}(id=${echeance.id})}"
+                           class="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 underline transition-colors">Modifier</a>
+                        <a th:href="@{/admin/echeances/{id}(id=${echeance.id})}"
+                           class="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 underline transition-colors">Fiche</a>
+                    </span>
+                </div>
             </div>
 
             <!-- Paiements de cette échéance -->

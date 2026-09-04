@@ -532,6 +532,7 @@ public class AdminController {
             @RequestParam(required = false) Integer dureeCautionMois,
             @RequestParam(required = false) String datePreavis,
             @RequestParam(required = false) Long contratPrecedentId,
+            @RequestParam(required = false) String[] echeanceIds,
             @RequestParam(required = false) String[] echeanceDates,
             @RequestParam(required = false) String[] echeanceMontants,
             @RequestParam(required = false) String[] echeanceTypes,
@@ -541,8 +542,9 @@ public class AdminController {
         // Ajouté une seule fois ici, avant toute validation : si le formulaire est rejeté plus
         // bas (n'importe quelle branche), le Model porte déjà les lignes d'échéances telles que
         // saisies — admin-contract-form.html les réaffiche pré-remplies au lieu d'un échéancier
-        // vide qu'il faudrait ressaisir depuis le début.
-        model.addAttribute("echeancesSaisies", construireEcheancesSaisies(echeanceDates, echeanceMontants, echeanceTypes));
+        // vide qu'il faudrait ressaisir depuis le début. echeanceIds reste vide côté création
+        // (aucune échéance ne peut déjà exister sur un contrat qui n'est pas encore créé).
+        model.addAttribute("echeancesSaisies", construireEcheancesSaisies(echeanceIds, echeanceDates, echeanceMontants, echeanceTypes));
 
         Emplacement emplacement = emplacementRepository.findById(emplacementId)
                 .orElseThrow(() -> new RuntimeException("Store not found"));
@@ -609,7 +611,7 @@ public class AdminController {
         contrat.setContratPrecedent(contratPrecedent);
 
         List<Echeance> echeances = new ArrayList<>();
-        String erreurEcheances = construireEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes, echeances);
+        String erreurEcheances = construireEcheances(contrat, echeanceIds, echeanceDates, echeanceMontants, echeanceTypes, echeances);
         if (erreurEcheances != null) {
             return rejectContractForm(model, erreurEcheances,
                     contratPourRejet(null, emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
@@ -731,6 +733,10 @@ public class AdminController {
         model.addAttribute("contrat", contrat);
         model.addAttribute("emplacements", emplacementRepository.findAll());
         model.addAttribute("locataires", userRepository.findByRole(Role.ROLE_LOCATAIRE));
+        // Pré-remplit les échéances déjà rattachées (avec leur id) : sans ça, le formulaire ne
+        // montrait qu'une ligne vide et ressaisir une échéance pour la "corriger" en créait une
+        // nouvelle en doublon au lieu de mettre à jour l'existante (cf. rapport de bug).
+        model.addAttribute("echeancesSaisies", echeancesExistantesPourFormulaire(id));
         return "admin-contract-form";
     }
 
@@ -751,6 +757,7 @@ public class AdminController {
             @RequestParam(required = false) BigDecimal montantCaution,
             @RequestParam(required = false) Integer dureeCautionMois,
             @RequestParam(required = false) String datePreavis,
+            @RequestParam(required = false) String[] echeanceIds,
             @RequestParam(required = false) String[] echeanceDates,
             @RequestParam(required = false) String[] echeanceMontants,
             @RequestParam(required = false) String[] echeanceTypes,
@@ -758,8 +765,10 @@ public class AdminController {
             Model model) {
 
         // Même raison qu'addContract ci-dessus : disponible dans le Model avant toute validation,
-        // pour que n'importe quelle branche de rejet plus bas réaffiche l'échéancier tel que saisi.
-        model.addAttribute("echeancesSaisies", construireEcheancesSaisies(echeanceDates, echeanceMontants, echeanceTypes));
+        // pour que n'importe quelle branche de rejet plus bas réaffiche l'échéancier tel que
+        // saisi — id compris, pour ne pas transformer une échéance existante en doublon au
+        // prochain essai si ce rejet touche un autre champ du contrat.
+        model.addAttribute("echeancesSaisies", construireEcheancesSaisies(echeanceIds, echeanceDates, echeanceMontants, echeanceTypes));
 
         Contrat contrat = contratRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Contract not found"));
@@ -816,10 +825,12 @@ public class AdminController {
         // l'était déjà avant cette édition, via le champ caché dédié du template.
         Map<String, Object> ancienSnapshot = contratSnapshot(contrat);
 
-        // Construit les nouvelles échéances avant toute modification de l'entité gérée (JPA),
+        // Construit/met à jour les échéances avant toute modification de l'entité gérée (JPA),
         // pour ne rien écrire en base si le formulaire est finalement rejeté (montant invalide).
+        // Une ligne avec un id existant (échéancesSaisies pré-remplies plus haut) MET À JOUR
+        // l'échéance déjà rattachée à ce contrat au lieu d'en créer une nouvelle en doublon.
         List<Echeance> echeances = new ArrayList<>();
-        String erreurEcheances = construireEcheances(contrat, echeanceDates, echeanceMontants, echeanceTypes, echeances);
+        String erreurEcheances = construireEcheances(contrat, echeanceIds, echeanceDates, echeanceMontants, echeanceTypes, echeances);
         if (erreurEcheances != null) {
             return rejectContractForm(model, erreurEcheances,
                     contratPourRejet(contrat.getId(), emplacement, locataire, dateDebut, dateFin, termes, activite, nomEnseigne,
@@ -872,17 +883,28 @@ public class AdminController {
     // `dates` (seule la date fait qu'une ligne devient une échéance) et accède aux deux autres
     // tableaux avec un garde-fou de longueur, un index hors bornes valant simplement "absent".
     //
-    // Ne persiste rien : construit la liste d'Echeance en mémoire (ajoutées à `out`) et renvoie
-    // un message d'erreur si un montant saisi est invalide — pour permettre au contrôleur de
-    // rejeter tout le formulaire (contrat compris) avant d'écrire quoi que ce soit en base si une
-    // seule échéance est invalide. Aucune contrainte sur la date elle-même par rapport à la
-    // période du contrat (cf. le commentaire dans la boucle ci-dessous).
-    private String construireEcheances(Contrat contrat, String[] dates, String[] montants, String[] types,
+    // `ids` distingue mise à jour et création : une ligne dont l'id correspond à une échéance
+    // déjà rattachée à CE contrat met à jour cette échéance existante (jamais un doublon
+    // silencieux — cf. rapport de bug : sans cet id, une échéance ressaisie pour la "corriger"
+    // en créait une nouvelle au lieu de mettre à jour l'existante, laissant l'ancienne orpheline
+    // en base et faussant l'échéancier réel). Une ligne sans id (ou vide) crée une nouvelle
+    // échéance — c'est le seul cas qui en ajoute une. admin-contract-form.html pré-remplit
+    // toujours l'id des échéances existantes dans un champ caché ; seule une ligne ajoutée
+    // explicitement par l'utilisateur ("+ Ajouter une échéance") en soumet un vide.
+    //
+    // Ne persiste rien : construit/modifie la liste d'Echeance en mémoire (ajoutées à `out`,
+    // charge à l'appelant de les sauvegarder) et renvoie un message d'erreur si un montant saisi
+    // est invalide ou si un id ne correspond à aucune échéance de ce contrat — pour permettre au
+    // contrôleur de rejeter tout le formulaire (contrat compris) avant d'écrire quoi que ce soit
+    // en base si une seule échéance est invalide. Aucune contrainte sur la date elle-même par
+    // rapport à la période du contrat (cf. le commentaire dans la boucle ci-dessous).
+    private String construireEcheances(Contrat contrat, String[] ids, String[] dates, String[] montants, String[] types,
                                         List<Echeance> out) {
         if (dates == null) {
             return null;
         }
         for (int i = 0; i < dates.length; i++) {
+            String idStr = (ids != null && i < ids.length) ? ids[i] : null;
             String dateStr = dates[i];
             String montantStr = (montants != null && i < montants.length) ? montants[i] : null;
             // Seule la date fait qu'une ligne devient une échéance (le montant, désormais
@@ -902,13 +924,46 @@ public class AdminController {
                 return "Le montant d'une échéance (" + dateEcheance.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                         + "), s'il est renseigné, doit être strictement positif.";
             }
-            Echeance echeance = new Echeance();
+            String typeStr = (types != null && i < types.length) ? types[i] : null;
+            TypeEcheance type = (typeStr == null || typeStr.isBlank()) ? TypeEcheance.LOYER : TypeEcheance.valueOf(typeStr);
+
+            Echeance echeance;
+            if (idStr != null && !idStr.isBlank()) {
+                Long echeanceId;
+                try {
+                    echeanceId = Long.parseLong(idStr.trim());
+                } catch (NumberFormatException e) {
+                    return "Identifiant d'échéance invalide.";
+                }
+                echeance = echeanceRepository.findById(echeanceId).orElse(null);
+                boolean appartientAuContrat = echeance != null && contrat.getId() != null
+                        && echeance.getContrat().getId().equals(contrat.getId());
+                if (!appartientAuContrat) {
+                    return "Une échéance à modifier n'a pas été retrouvée sur ce contrat — rechargez la page et réessayez.";
+                }
+            } else {
+                echeance = new Echeance();
+            }
+
             echeance.setContrat(contrat);
             echeance.setDateEcheance(dateEcheance);
             echeance.setMontantDu(montantEcheance);
-            echeance.setStatut(StatutEcheance.EN_COURS);
-            String typeStr = (types != null && i < types.length) ? types[i] : null;
-            echeance.setType((typeStr == null || typeStr.isBlank()) ? TypeEcheance.LOYER : TypeEcheance.valueOf(typeStr));
+            echeance.setType(type);
+            // Statut toujours dérivé, jamais saisi ici (comme partout ailleurs dans l'app, cf.
+            // EcheanceStatusService) : PAYEE seulement si les paiements déjà enregistrés
+            // couvrent le (nouveau) montant, sinon EN_RETARD/EN_COURS selon la date. totalPaye
+            // sur un id null (échéance neuve, pas encore de paiement possible) vaut simplement
+            // zéro — même calcul dans les deux cas, sans écrire en base ici (cf. ci-dessus).
+            BigDecimal totalPaye = echeance.getId() != null
+                    ? echeanceStatusService.totalPaye(echeance.getId())
+                    : BigDecimal.ZERO;
+            if (montantEcheance != null && totalPaye.compareTo(montantEcheance) >= 0) {
+                echeance.setStatut(StatutEcheance.PAYEE);
+            } else if (dateEcheance.isBefore(LocalDate.now())) {
+                echeance.setStatut(StatutEcheance.EN_RETARD);
+            } else {
+                echeance.setStatut(StatutEcheance.EN_COURS);
+            }
             out.add(echeance);
         }
         return null;
@@ -916,20 +971,42 @@ public class AdminController {
 
     /** Capture brute (non validée) des lignes d'échéances telles que soumises par le formulaire,
      *  pour les réafficher pré-remplies si le formulaire est rejeté plus loin (contrat invalide,
-     *  échéance invalide...) — jamais un échéancier qu'il faudrait ressaisir depuis le début.
-     *  Même garde-fou d'indexation que construireEcheances (cf. son commentaire) : `dates` fait
-     *  autorité, `montants`/`types` sont accédés avec un contrôle de bornes. */
-    private List<EcheanceSaisie> construireEcheancesSaisies(String[] dates, String[] montants, String[] types) {
+     *  échéance invalide...) — jamais un échéancier qu'il faudrait ressaisir depuis le début, et
+     *  surtout jamais un id perdu qui transformerait une échéance existante en doublon au
+     *  prochain essai. Même garde-fou d'indexation que construireEcheances (cf. son commentaire) :
+     *  `dates` fait autorité, `ids`/`montants`/`types` sont accédés avec un contrôle de bornes. */
+    private List<EcheanceSaisie> construireEcheancesSaisies(String[] ids, String[] dates, String[] montants, String[] types) {
         if (dates == null) {
             return List.of();
         }
         List<EcheanceSaisie> saisies = new ArrayList<>();
         for (int i = 0; i < dates.length; i++) {
+            String idStr = (ids != null && i < ids.length) ? ids[i] : null;
+            Long id = null;
+            if (idStr != null && !idStr.isBlank()) {
+                try {
+                    id = Long.parseLong(idStr.trim());
+                } catch (NumberFormatException ignored) {
+                    // Id malformé : la ligne réaffichera simplement comme une nouvelle échéance.
+                }
+            }
             String montant = (montants != null && i < montants.length) ? montants[i] : null;
             String type = (types != null && i < types.length) ? types[i] : null;
-            saisies.add(new EcheanceSaisie(dates[i], montant, type));
+            saisies.add(new EcheanceSaisie(id, dates[i], montant, type));
         }
         return saisies;
+    }
+
+    /** Échéances déjà rattachées à un contrat, pré-remplies (avec leur id) pour le formulaire
+     *  d'édition — évite exactement le bug de doublon décrit ci-dessus dès le premier
+     *  chargement du formulaire, pas seulement après un rejet. */
+    private List<EcheanceSaisie> echeancesExistantesPourFormulaire(Long contratId) {
+        return echeanceRepository.findByContratId(contratId).stream()
+                .sorted(Comparator.comparing(Echeance::getDateEcheance))
+                .map(e -> new EcheanceSaisie(e.getId(), e.getDateEcheance().toString(),
+                        e.getMontantDu() == null ? null : e.getMontantDu().toPlainString(),
+                        e.getType().name()))
+                .toList();
     }
 
     // POST (pas GET) : voir le commentaire sur deleteStore ci-dessus, même raison.

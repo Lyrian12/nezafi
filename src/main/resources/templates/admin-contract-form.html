@@ -134,9 +134,9 @@
                     </select>
                 </div>
 
-                <!-- Loyer -->
+                <!-- Loyer mensuel -->
                 <div class="flex items-center justify-between mb-2">
-                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Loyer</label>
+                    <label class="block text-sm font-bold text-slate-700 dark:text-slate-300">Loyer mensuel</label>
                     <!-- Révèle la section caution ci-dessous, masquée par défaut (cf. #caution-section) :
                          beaucoup de dossiers physiques repris n'en portent aucune trace, pas de champ
                          vide en permanence pour ce cas. -->
@@ -148,12 +148,12 @@
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Durée couverte par le loyer (mois) *</label>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Durée couverte par le loyer mensuel (mois) *</label>
                         <input type="number" id="duree-loyer" name="dureeLoyerMois" th:value="${contrat.dureeLoyerMois}" min="1" step="1" placeholder="ex : 12" required
                                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Montant du loyer (FCFA) *</label>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Montant du loyer mensuel (FCFA) *</label>
                         <input type="number" step="0.01" min="0" id="montant-loyer" name="montantLoyer" th:value="${contrat.montantLoyer}" placeholder="Suggéré, modifiable" required
                                class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
                     </div>
@@ -195,12 +195,17 @@
                 <div>
                     <label class="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Échéances à ajouter</label>
                     <p class="text-[11px] text-slate-400 dark:text-slate-500 mb-3">Chaque contrat a son propre échéancier négocié au cas par cas — ajoutez librement une ou plusieurs échéances (aucune génération automatique).</p>
-                    <!-- Réaffichage après un rejet (contrat invalide, montant d'échéance invalide...) :
-                         echeancesSaisies porte les lignes telles que soumises (cf. AdminController),
-                         pour ne jamais faire perdre un échéancier déjà saisi. Une seule ligne vide
-                         par défaut si le formulaire est vierge (création, ou aucune ligne saisie). -->
+                    <!-- Pré-remplissage (édition) et réaffichage après un rejet (contrat invalide,
+                         montant d'échéance invalide...) : echeancesSaisies porte les lignes déjà
+                         rattachées au contrat ET/OU telles que soumises (cf. AdminController), id
+                         compris — le champ caché echeanceIds sur chaque ligne est ce qui permet de
+                         METTRE À JOUR l'échéance existante au lieu d'en créer une nouvelle en
+                         doublon si l'admin la ressaisit pour la corriger (vide = nouvelle ligne
+                         jamais encore enregistrée). Une seule ligne vide par défaut si le
+                         formulaire est vierge (création sans échéance encore saisie). -->
                     <div id="echeances-container" class="space-y-3">
                         <div th:if="${#lists.isEmpty(echeancesSaisies)}" class="flex gap-3 echeance-row">
+                            <input type="hidden" name="echeanceIds" value=""/>
                             <input type="date" name="echeanceDates" placeholder="Date d'échéance"
                                    class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                             <input type="number" step="0.01" min="0" name="echeanceMontants" placeholder="Montant dû (FCFA)"
@@ -211,7 +216,10 @@
                             </select>
                             <button type="button" class="remove-echeance-btn px-3 text-slate-400 hover:text-red-500 transition-colors" title="Retirer cette échéance">✕</button>
                         </div>
-                        <div th:each="ligne : ${echeancesSaisies}" class="flex gap-3 echeance-row">
+                        <div th:each="ligne : ${echeancesSaisies}" class="flex gap-3 items-center echeance-row">
+                            <input type="hidden" name="echeanceIds" th:value="${ligne.id}"/>
+                            <span th:if="${ligne.id != null}" title="Échéance déjà enregistrée — modifier ces champs la met à jour, elle n'en crée pas une nouvelle."
+                                  class="shrink-0 text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 rounded-md px-1.5 py-1">Existante</span>
                             <input type="date" name="echeanceDates" th:value="${ligne.date}" placeholder="Date d'échéance"
                                    class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
                             <input type="number" step="0.01" min="0" name="echeanceMontants" th:value="${ligne.montant}" placeholder="Montant dû (FCFA)"
@@ -220,9 +228,36 @@
                                 <option value="LOYER" th:selected="${ligne.type == null or ligne.type == 'LOYER'}">Loyer</option>
                                 <option value="CAUTION" th:selected="${ligne.type == 'CAUTION'}">Caution</option>
                             </select>
-                            <button type="button" class="remove-echeance-btn px-3 text-slate-400 hover:text-red-500 transition-colors" title="Retirer cette échéance">✕</button>
+                            <!-- Pas de "✕ Retirer" sur une ligne déjà enregistrée : la retirer d'ici
+                                 ne ferait que l'omettre de CETTE soumission (elle resterait intacte
+                                 en base, cf. AdminController.construireEcheances — jamais de
+                                 suppression silencieuse) plutôt que la supprimer, ce qui prêterait à
+                                 confusion. La vraie suppression (réservée ADMIN, avec confirmation)
+                                 vit sur sa fiche dédiée, à un clic d'ici. -->
+                            <a th:if="${ligne.id != null}" th:href="@{/admin/echeances/{id}(id=${ligne.id})}"
+                               class="shrink-0 px-3 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors text-xs font-semibold underline"
+                               title="Voir la fiche de cette échéance (modifier son statut, supprimer...)">Fiche</a>
+                            <button th:unless="${ligne.id != null}" type="button" class="remove-echeance-btn px-3 text-slate-400 hover:text-red-500 transition-colors" title="Retirer cette échéance">✕</button>
                         </div>
                     </div>
+                    <!-- Gabarit d'une ligne neuve, cloné par le bouton "+ Ajouter" ci-dessous —
+                         jamais depuis une ligne existante du formulaire (qui pourrait porter un id
+                         ou l'état "Fiche" au lieu de "✕") : toujours vierge, sans id, quel que soit
+                         l'état actuel du formulaire (contrat vierge ou déjà rempli d'échéances). -->
+                    <template id="echeance-row-template">
+                        <div class="flex gap-3 echeance-row">
+                            <input type="hidden" name="echeanceIds" value=""/>
+                            <input type="date" name="echeanceDates" placeholder="Date d'échéance"
+                                   class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
+                            <input type="number" step="0.01" min="0" name="echeanceMontants" placeholder="Montant dû (FCFA)"
+                                   class="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-slate-400 transition-colors">
+                            <select name="echeanceTypes" class="w-32 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-3 text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:border-slate-400 transition-colors">
+                                <option value="LOYER">Loyer</option>
+                                <option value="CAUTION">Caution</option>
+                            </select>
+                            <button type="button" class="remove-echeance-btn px-3 text-slate-400 hover:text-red-500 transition-colors" title="Retirer cette échéance">✕</button>
+                        </div>
+                    </template>
                     <button type="button" id="add-echeance-btn" class="mt-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
                         + Ajouter une échéance
                     </button>
@@ -247,16 +282,12 @@
 <script>
     document.getElementById('add-echeance-btn').addEventListener('click', function () {
         var container = document.getElementById('echeances-container');
-        // Clone la dernière ligne plutôt que la première : après un rejet réaffichant plusieurs
-        // lignes déjà saisies (cf. echeancesSaisies), cloner systématiquement la première les
-        // dupliquerait toutes en boucle sur ce même contenu au lieu d'ajouter une ligne neuve.
-        var rows = container.querySelectorAll('.echeance-row');
-        var row = rows[rows.length - 1].cloneNode(true);
-        row.querySelectorAll('input').forEach(function (input) { input.value = ''; });
-        // Remet aussi le type sur son premier <option> (Loyer) : un clone garde sinon la
-        // sélection de la ligne d'origine (ex : Caution) sur la nouvelle ligne vide.
-        row.querySelectorAll('select').forEach(function (select) { select.selectedIndex = 0; });
-        container.appendChild(row);
+        // Toujours clonée depuis le <template> dédié (jamais depuis une ligne déjà présente dans
+        // le formulaire) : une ligne existante n'a pas forcément le bouton "✕" (remplacé par un
+        // lien "Fiche" pour les échéances déjà enregistrées, cf. plus haut) et porterait sinon un
+        // id caché non vide — cloner le gabarit garantit une ligne neuve, sans id, à chaque fois.
+        var template = document.getElementById('echeance-row-template');
+        container.appendChild(template.content.cloneNode(true));
     });
     document.getElementById('echeances-container').addEventListener('click', function (event) {
         if (event.target.classList.contains('remove-echeance-btn')) {
