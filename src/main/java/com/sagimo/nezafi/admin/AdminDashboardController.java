@@ -58,11 +58,12 @@ public class AdminDashboardController {
     // Fenêtre du graphique d'encaissements : les 6 derniers mois glissants, mois courant inclus.
     private static final int MOIS_HISTORIQUE = 6;
     // Une couleur par Palier, réutilisée à la fois pour ses anneaux d'occupation et sa légende.
-    private static final String[] COULEURS_PALIER = {"#84cc16", "#0ea5e9", "#f59e0b"};
-    // Rayon de chaque anneau (du plus externe au plus interne, un par Palier dans l'ordre de
-    // Palier.values()) — cercle SVG centré sur (80,80), épaisseur de trait 12 (cf. gabarit
-    // "occupancyRingStrokeWidth" côté template), 6px d'écart entre anneaux successifs.
-    private static final double[] RAYONS_ANNEAUX = {68, 50, 32};
+    private static final String[] COULEURS_PALIER = {"#84cc16", "#0ea5e9", "#f59e0b", "#a855f7"};
+    // Rayon de chaque anneau (du plus interne au plus externe, un par Palier dans l'ordre de
+    // Palier.values()) — Rez de chaussée au centre, Palier 3 sur le bord extérieur. Cercle SVG
+    // centré sur (80,80), épaisseur de trait 12 (cf. gabarit "occupancyRingStrokeWidth" côté
+    // template), 6px d'écart entre anneaux successifs.
+    private static final double[] RAYONS_ANNEAUX = {14, 32, 50, 68};
 
     private final AdminAlertService adminAlertService;
     private final EmplacementRepository emplacementRepository;

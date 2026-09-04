@@ -58,8 +58,13 @@
                     <span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium px-2.5 py-1 rounded-md text-[11px]"
                           th:text="${membre.role.name() == 'ROLE_ADMIN'} ? 'Administrateur' : (${membre.role.name() == 'ROLE_SECRETARIAT'} ? 'Secrétariat' : 'Comptable')">Rôle</span>
                 </td>
-                <td class="py-4 px-6 text-right">
+                <td class="py-4 px-6 text-right space-x-2 whitespace-nowrap">
                     <a th:href="@{/admin/staff/edit/{id}(id=${membre.id})}" class="text-slate-600 dark:text-slate-300 font-bold hover:underline">Modifier</a>
+                    <form th:if="${membre.id != moiId}" th:action="@{/admin/staff/delete/{id}(id=${membre.id})}" method="post" class="inline"
+                          onsubmit="return confirm('Supprimer ce compte du personnel ?');">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="text-red-500 dark:text-red-400 font-bold hover:underline">Supprimer</button>
+                    </form>
                 </td>
             </tr>
             <tr th:if="${#lists.isEmpty(personnel)}">

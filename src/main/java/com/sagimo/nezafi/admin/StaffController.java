@@ -1,7 +1,9 @@
 package com.sagimo.nezafi.admin;
 
 import com.sagimo.nezafi.audit.AuditService;
+import com.sagimo.nezafi.audit.JournalAuditRepository;
 import com.sagimo.nezafi.audit.TypeActionAudit;
+import com.sagimo.nezafi.paiement.PaiementRepository;
 import com.sagimo.nezafi.user.Role;
 import com.sagimo.nezafi.user.User;
 import com.sagimo.nezafi.user.UserRepository;
@@ -40,11 +42,16 @@ public class StaffController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final JournalAuditRepository journalAuditRepository;
+    private final PaiementRepository paiementRepository;
 
-    public StaffController(UserRepository userRepository, PasswordEncoder passwordEncoder, AuditService auditService) {
+    public StaffController(UserRepository userRepository, PasswordEncoder passwordEncoder, AuditService auditService,
+                            JournalAuditRepository journalAuditRepository, PaiementRepository paiementRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
+        this.journalAuditRepository = journalAuditRepository;
+        this.paiementRepository = paiementRepository;
     }
 
     private User currentAdmin(Authentication authentication) {
@@ -92,11 +99,14 @@ public class StaffController {
     }
 
     @GetMapping
-    public String liste(Model model) {
+    public String liste(Authentication authentication, Model model) {
         List<User> personnel = userRepository.findByRoleIn(ROLES_PERSONNEL).stream()
                 .sorted(Comparator.comparing(User::getNom))
                 .toList();
         model.addAttribute("personnel", personnel);
+        // Sert à masquer le bouton de suppression sur sa propre ligne côté template (confort
+        // d'affichage — le contrôle réel reste le garde-fou serveur dans supprimer() ci-dessous).
+        model.addAttribute("moiId", currentAdmin(authentication).getId());
         return "admin-staff";
     }
 
@@ -250,6 +260,39 @@ public class StaffController {
             auditService.enregistrer(currentAdmin(authentication), TypeActionAudit.MODIFICATION,
                     "CompteDuPersonnel", membre.getId(), avant, apres);
         }
+
+        return "redirect:/admin/staff";
+    }
+
+    // POST (pas GET) : même raison que les autres suppressions de l'application (jeton CSRF).
+    // Contrairement aux emplacements/contrats/clients, aucune confirmation en deux temps ici :
+    // un compte du personnel n'a pas d'historique financier en cascade (mappedBy="locataire" ne
+    // concerne que les LOCATAIRE), le seul risque réel est de casser le journal d'audit ou la
+    // traçabilité des paiements déjà enregistrés — bloqué net ci-dessous, sans option de forcer :
+    // cette trace ne doit jamais pouvoir être effacée, même volontairement.
+    @PostMapping("/delete/{id}")
+    public String supprimer(@PathVariable Long id, Authentication authentication, RedirectAttributes redirectAttributes) {
+        User membre = trouverCompteDuPersonnel(id);
+        User admin = currentAdmin(authentication);
+
+        if (membre.getId().equals(admin.getId())) {
+            redirectAttributes.addFlashAttribute("error", "Vous ne pouvez pas supprimer votre propre compte.");
+            return "redirect:/admin/staff";
+        }
+        if (membre.getRole() == Role.ROLE_ADMIN && userRepository.findByRole(Role.ROLE_ADMIN).size() <= 1) {
+            redirectAttributes.addFlashAttribute("error", "Impossible de supprimer le dernier compte administrateur.");
+            return "redirect:/admin/staff";
+        }
+        if (journalAuditRepository.existsByUtilisateurId(id) || paiementRepository.existsByAdminEnregistrantId(id)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Impossible de supprimer ce compte : il a des actions dans le journal d'audit et/ou des paiements "
+                            + "enregistrés à son nom, qui doivent être conservés à des fins de traçabilité.");
+            return "redirect:/admin/staff";
+        }
+
+        Map<String, Object> avant = snapshot(membre);
+        userRepository.deleteById(id);
+        auditService.enregistrer(admin, TypeActionAudit.SUPPRESSION, "CompteDuPersonnel", id, avant, null);
 
         return "redirect:/admin/staff";
     }

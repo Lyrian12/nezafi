@@ -114,8 +114,8 @@
                 <td class="py-4 px-6 font-bold text-slate-900 dark:text-slate-100" th:text="${contract.emplacement.name}">Emplacement Name</td>
                 <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${contract.locataire.prenom + ' ' + contract.locataire.nom}">Tenant Name</td>
                 <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${contract.nomEnseigne} ?: '—'">Enseigne</td>
-                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${#temporals.format(contract.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
-                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${#temporals.format(contract.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${contract.dateDebut != null} ? ${#temporals.format(contract.dateDebut, 'dd-MM-yyyy')} : 'Non renseigné'">01-01-2024</td>
+                <td class="py-4 px-6 text-slate-600 dark:text-slate-300" th:text="${contract.dateFin != null} ? ${#temporals.format(contract.dateFin, 'dd-MM-yyyy')} : 'Non renseigné'">31-12-2024</td>
                 <td class="py-4 px-6">
                     <span class="inline-flex items-center font-medium" th:classappend="${contract.statut.name() == 'VALIDER'} ? 'text-green-700 dark:text-green-400' : ((${contract.statut.name() == 'REJETER'} or ${contract.statut.name() == 'EXPIRE'}) ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400')">
                         <span class="w-1.5 h-1.5 rounded-full mr-2"

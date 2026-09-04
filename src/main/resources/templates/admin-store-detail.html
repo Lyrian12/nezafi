@@ -107,8 +107,8 @@
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                         <tr th:each="contrat : ${contrats}" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors">
                             <td class="py-3 px-4 font-bold text-slate-900 dark:text-slate-100" th:text="${contrat.locataire.prenom + ' ' + contrat.locataire.nom}">Locataire</td>
-                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')}">01-01-2024</td>
-                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')}">31-12-2024</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${contrat.dateDebut != null} ? ${#temporals.format(contrat.dateDebut, 'dd-MM-yyyy')} : 'Non renseigné'">01-01-2024</td>
+                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300" th:text="${contrat.dateFin != null} ? ${#temporals.format(contrat.dateFin, 'dd-MM-yyyy')} : 'Non renseigné'">31-12-2024</td>
                             <td class="py-3 px-4">
                                 <span class="inline-flex items-center font-medium" th:classappend="${contrat.statut.name() == 'VALIDER'} ? 'text-green-700 dark:text-green-400' : ((${contrat.statut.name() == 'REJETER'} or ${contrat.statut.name() == 'EXPIRE'}) ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400')">
                                     <span class="w-1.5 h-1.5 rounded-full mr-2" th:classappend="${contrat.statut.name() == 'VALIDER'} ? 'bg-green-500' : ((${contrat.statut.name() == 'REJETER'} or ${contrat.statut.name() == 'EXPIRE'}) ? 'bg-red-500' : 'bg-orange-500')"></span>
@@ -137,7 +137,7 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
                         <span class="text-sm text-slate-600 dark:text-slate-300">Palier</span>
-                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${#strings.capitalize(#strings.toLowerCase(emplacement.palier.name()).replace('_',' '))}">Palier 1</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${emplacement.palier.libelle}">Palier 1</span>
                     </div>
                     <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
                         <span class="text-sm text-slate-600 dark:text-slate-300">Catégorie</span>
@@ -149,7 +149,8 @@
                     </div>
                     <div class="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-800">
                         <span class="text-sm text-slate-600 dark:text-slate-300">Prix</span>
-                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100" th:text="${#numbers.formatDecimal(emplacement.prix, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA'">0 FCFA</span>
+                        <span class="text-sm font-semibold text-slate-900 dark:text-slate-100"
+                              th:text="${emplacement.prix != null} ? ${#numbers.formatDecimal(emplacement.prix, 1, 'WHITESPACE', 2, 'COMMA')} + ' FCFA' : 'Non renseigné'">0 FCFA</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-sm text-slate-600 dark:text-slate-300">Statut</span>

@@ -43,7 +43,11 @@ public class Emplacement {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal superficie;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    // Facultatif, même raison que les dates de bail et la caution sur Contrat : certains dossiers
+    // physiques repris n'ont pas de prix connu avec certitude. Absence gérée proprement partout
+    // où ce champ est utilisé (affichage, filtres, suggestion de loyer à la création d'un
+    // contrat) — aucun de ces usages ne suppose plus qu'il est toujours présent.
+    @Column(precision = 12, scale = 2)
     private BigDecimal prix;
 
     @Enumerated(EnumType.STRING)
